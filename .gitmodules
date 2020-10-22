@@ -1,0 +1,3 @@
+[submodule "imnodes-sys/third-party/cimnodes"]
+	path = imnodes-sys/third-party/cimnodes
+	url = https://github.com/cimgui/cimnodes
