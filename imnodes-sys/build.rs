@@ -7,7 +7,7 @@ use std::{env, fs, io, path::Path};
 
 const CPP_FILES: &[&str] = &[
     "third-party/cimnodes/cimnodes.cpp",
-    "third-party/cimnodes/cimnodes.h",
+    "third-party/cimnodes/imnodes/imnodes.cpp",
 ];
 
 const IMNODES_INCLUDE_DIRECTORIES: &[&str] = &["third-party/cimnodes/imnodes/"];
@@ -57,7 +57,6 @@ fn main() -> io::Result<()> {
     build.flag_if_supported("-Wno-return-type-c-linkage");
     build.flag_if_supported("-Wno-unused-parameter");
     build.flag_if_supported("-std=c++11");
-    build.flag_if_supported("-DCIMGUI_DEFINE_ENUMS_AND_STRUCTS=1");
 
     for path in CPP_FILES {
         assert_file_exists(path)?;
