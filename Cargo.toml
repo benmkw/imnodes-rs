@@ -18,9 +18,9 @@ once_cell = "1.1"
 [workspace]
 members = [
     "imnodes-sys",
+    "imnodes-wgpu-examples",
 ]
 exclude = [
     "imnodes-sys-bindgen",
     "imnodes-examples",
-    "imnodes-wgpu-examples",
 ]

@@ -60,7 +60,7 @@ fn main() {
 
     // Set up dear imgui
     let mut imgui = imgui::Context::create();
-    let implot = implot::Context::create();
+    // let implot = implot::Context::create();
 
     let mut platform = imgui_winit_support::WinitPlatform::init(&mut imgui);
     platform.attach_window(
@@ -94,14 +94,15 @@ fn main() {
     let mut last_frame = Instant::now();
     let mut last_cursor = None;
 
-    let mut showing_demo = false;
-    let mut make_fullscreen = false;
+    let mut make_fullscreen = true;
+
+    imnodes::create_imnodes_context(); // TODO dtor
 
     // Event loop
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
-        let plot_ui = implot.get_plot_ui();
+        // let plot_ui = implot.get_plot_ui();
         match event {
             Event::WindowEvent {
                 event: WindowEvent::ScaleFactorChanged { scale_factor, .. },
@@ -157,42 +158,16 @@ fn main() {
                     };
 
                     window.build(&ui, || {
-                        ui.text(im_str!("Hello from implot-rs!"));
-                        ui.text_wrapped(im_str!(
-                            "The headers here demo the line plotting features of the library. \
-                    Have a look at the example source code to see how they are implemented.\n\
-                    Check out the demo from ImPlot itself first \
-                    (by enabling the 'Show demo' checkbox) for instructions \
-                    on how to interact with ImPlot plots."
-                        ));
+                        ui.text(im_str!("Hello from imnodes-rs!"));
 
-                        ui.checkbox(im_str!("Show demo"), &mut showing_demo);
                         ui.checkbox(
                             im_str!("make the implot window fill the whole outer window"),
                             &mut make_fullscreen,
                         );
 
                         // Show individual examples in collapsed headers
-                        if CollapsingHeader::new(im_str!("Basic lineplot")).build(&ui) {
-                            ui::show_basic_plot(&ui, &plot_ui);
-                        }
-                        if CollapsingHeader::new(im_str!("Configurable lineplot")).build(&ui) {
-                            ui::show_configurable_plot(&ui, &plot_ui);
-                        }
-                        if CollapsingHeader::new(im_str!("Querying a plot")).build(&ui) {
-                            ui::show_query_features_plot(&ui, &plot_ui);
-                        }
-                        if CollapsingHeader::new(im_str!("Styling a plot")).build(&ui) {
-                            ui::show_style_plot(&ui, &plot_ui);
-                        }
-                        if CollapsingHeader::new(im_str!("Colormap selection")).build(&ui) {
-                            ui::show_colormaps_plot(&ui, &plot_ui);
-                        }
+                        ui::show_basic_node(&ui);
                     });
-                }
-
-                if showing_demo {
-                    implot::show_demo_window(&mut showing_demo);
                 }
 
                 let mut encoder: wgpu::CommandEncoder =
@@ -233,4 +208,6 @@ fn main() {
 
         platform.handle_event(imgui.io_mut(), &window, &event);
     });
+
+    imnodes::imnodes_end_context();
 }
