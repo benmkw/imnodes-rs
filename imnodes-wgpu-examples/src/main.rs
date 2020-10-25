@@ -96,7 +96,7 @@ fn main() {
 
     let mut make_fullscreen = true;
 
-    imnodes::create_imnodes_context(); // TODO dtor
+    let imnodes_ui = imnodes::Context::new();
 
     // Event loop
     event_loop.run(move |event, _, control_flow| {
@@ -166,7 +166,7 @@ fn main() {
                         );
 
                         // Show individual examples in collapsed headers
-                        ui::show_basic_node(&ui);
+                        ui::show_basic_node(&ui, &imnodes_ui);
                     });
                 }
 
@@ -208,6 +208,4 @@ fn main() {
 
         platform.handle_event(imgui.io_mut(), &window, &event);
     });
-
-    imnodes::imnodes_end_context();
 }
