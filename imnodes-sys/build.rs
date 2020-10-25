@@ -42,8 +42,6 @@ fn main() -> io::Result<()> {
         build.define(key, val);
     }
 
-    // build.define("CIMGUI_DEFINE_ENUMS_AND_STRUCTS", "1"); // HACK
-
     let cimgui_include_path =
         env::var_os("DEP_IMGUI_THIRD_PARTY").expect("DEP_IMGUI_THIRD_PARTY not defined");
     let imgui_include_path = Path::new(&cimgui_include_path).join("imgui");

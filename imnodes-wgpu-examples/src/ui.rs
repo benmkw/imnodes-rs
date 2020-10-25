@@ -3,7 +3,7 @@ use imnodes::*;
 
 pub fn show_basic_node(ui: &Ui, context: &imnodes::Context) {
     set_style_colors_classic(&context);
-    let mut id_gen = IdentifierGenerator::new();
+    let mut id_gen = context.new_identifier_generator();
 
     let first_node = id_gen.next_node();
     let second_node = id_gen.next_node();

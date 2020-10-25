@@ -60,7 +60,12 @@ fn main() {
 
     // Set up dear imgui
     let mut imgui = imgui::Context::create();
+
+    // Set up dear implot
     // let implot = implot::Context::create();
+
+    // Set up dear imnodes
+    let imnodes_ui = imnodes::Context::new();
 
     let mut platform = imgui_winit_support::WinitPlatform::init(&mut imgui);
     platform.attach_window(
@@ -95,8 +100,6 @@ fn main() {
     let mut last_cursor = None;
 
     let mut make_fullscreen = true;
-
-    let imnodes_ui = imnodes::Context::new();
 
     // Event loop
     event_loop.run(move |event, _, control_flow| {

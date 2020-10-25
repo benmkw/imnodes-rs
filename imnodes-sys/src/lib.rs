@@ -2,6 +2,7 @@
 #![allow(non_camel_case_types)]
 #![allow(non_snake_case)]
 
-pub use imgui;
+// just to link it for tests
+use imgui_sys as _;
 
 include!("bindings.rs");

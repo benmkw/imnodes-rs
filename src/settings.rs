@@ -1,11 +1,11 @@
 #![allow(missing_docs)]
 
-use sys::imgui::ImColor;
+use imgui::ImColor;
 
 use crate::{sys, Context};
 
 #[derive(Clone)]
-#[repr(u32)]
+#[repr(i32)]
 pub enum ColorStyle {
     NodeBackground = sys::ColorStyle_ColorStyle_NodeBackground,
     NodeBackgroundHovered = sys::ColorStyle_ColorStyle_NodeBackgroundHovered,
@@ -48,12 +48,12 @@ impl Drop for ColorToken {
 #[must_use = "need to call end on ColorToken befor going out of scope"]
 pub fn push_color_style<C: Into<ImColor>>(style: ColorStyle, color: C, _: &Context) -> ColorToken {
     let color: ImColor = color.into();
-    unsafe { sys::imnodes_PushColorStyle(style as u32, color.into()) };
+    unsafe { sys::imnodes_PushColorStyle(style as i32, color.into()) };
     ColorToken { ended: false }
 }
 
 #[derive(Clone)]
-#[repr(u32)]
+#[repr(i32)]
 pub enum StyleVar {
     GridSpacing = sys::StyleVar_StyleVar_GridSpacing,
     NodeCornerRounding = sys::StyleVar_StyleVar_NodeCornerRounding,
@@ -81,12 +81,12 @@ impl Drop for StyleVarToken {
 
 #[must_use = "need to call end on StyleVarToken befor going out of scope"]
 pub fn push_style_vare(style: StyleVar, value: f32, _: &Context) -> StyleVarToken {
-    unsafe { sys::imnodes_PushStyleVar(style as u32, value) };
+    unsafe { sys::imnodes_PushStyleVar(style as i32, value) };
     StyleVarToken { ended: false }
 }
 
 #[derive(Clone)]
-#[repr(u32)]
+#[repr(i32)]
 pub enum StyleFlag {
     None = sys::StyleFlags_StyleFlags_None,
     NodeOutline = sys::StyleFlags_StyleFlags_NodeOutline,
@@ -94,7 +94,7 @@ pub enum StyleFlag {
 }
 
 #[derive(Clone)]
-#[repr(u32)]
+#[repr(i32)]
 pub enum PinShape {
     Circle = sys::PinShape_PinShape_Circle,
     CircleFilled = sys::PinShape_PinShape_CircleFilled,
@@ -105,7 +105,7 @@ pub enum PinShape {
 }
 
 #[derive(Clone)]
-#[repr(u32)]
+#[repr(i32)]
 pub enum AttributeFlag {
     None = sys::AttributeFlags_AttributeFlags_None,
     EnableLinkDetachWithDragClick =
@@ -133,6 +133,6 @@ impl Drop for AttributeFlagToken {
 
 #[must_use = "need to call end on AttributeFlagsToken befor going out of scope"]
 pub fn push_attribute_flag(flag: AttributeFlag, _: &Context) -> AttributeFlagToken {
-    unsafe { sys::imnodes_PushAttributeFlag(flag as u32) };
+    unsafe { sys::imnodes_PushAttributeFlag(flag as i32) };
     AttributeFlagToken { ended: false }
 }

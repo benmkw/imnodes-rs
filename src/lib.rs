@@ -6,20 +6,23 @@ Bindings for [imnodes](https://github.com/Nelarius/imnodes) using [cimnodes](htt
 
 use imnodes_sys as sys;
 
+/// export all low level functions
+#[cfg(feature = "include_low_level_bindings")]
+pub mod internal {
+    pub use imnodes_sys::*;
+}
+
 mod context;
 pub use context::*;
 
 mod helpers;
 pub use helpers::*;
 
-mod enums;
-pub use enums::*;
+mod settings;
+pub use settings::*;
 
-pub use sys::{imgui::ImColor, EditorContext, ImVec2, ImVec4, Style};
-
-// pub struct NodeUi{
-//         NodeUi { context: self }
-// };
+// maybe wrap those (same decision as in implot-rs)
+pub use sys::{EditorContext, ImVec2, Style};
 
 /// used to generate unique identifers for elements
 pub struct IdentifierGenerator {
@@ -30,7 +33,7 @@ pub struct IdentifierGenerator {
 
 impl IdentifierGenerator {
     /// create
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             current_node: 0,
             current_pin: 0,
@@ -491,7 +494,7 @@ impl ScopeNode {
     /// ...
     /// EndInputAttribute
     pub fn input<F: FnOnce()>(&self, id: InputPinId, shape: PinShape, f: F) {
-        unsafe { sys::imnodes_BeginInputAttribute(id.into(), shape as u32) };
+        unsafe { sys::imnodes_BeginInputAttribute(id.into(), shape as i32) };
         f();
         unsafe { sys::imnodes_EndInputAttribute() };
     }
@@ -500,7 +503,7 @@ impl ScopeNode {
     /// ...
     /// EndOutputAttribute
     pub fn output<F: FnOnce()>(&self, id: OutputPinId, shape: PinShape, f: F) {
-        unsafe { sys::imnodes_BeginOutputAttribute(id.into(), shape as u32) };
+        unsafe { sys::imnodes_BeginOutputAttribute(id.into(), shape as i32) };
         f();
         unsafe { sys::imnodes_EndOutputAttribute() };
     }

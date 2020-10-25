@@ -10,16 +10,15 @@ readme = "README.md"
 
 [dependencies]
 imnodes-sys = { version = "0.1.0", path = "imnodes-sys" }
-parking_lot = "0.11"
-lazy_static = "1.1"
+imgui = "0.5.0"
 
+[features]
+# export all low level functions
+include_low_level_bindings = [] 
 
 [workspace]
 members = [
     "imnodes-sys",
     "imnodes-wgpu-examples",
-]
-exclude = [
     "imnodes-sys-bindgen",
-    "imnodes-examples",
 ]

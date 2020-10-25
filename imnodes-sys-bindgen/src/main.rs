@@ -34,6 +34,19 @@ fn main() {
         )
         .parse_callbacks(Box::new(CargoCallbacks))
         .clang_arg("-DCIMGUI_DEFINE_ENUMS_AND_STRUCTS=1")
+        .whitelist_function("imnodes_.*")
+        // from CIMGUI_DEFINE_ENUMS_AND_STRUCTS
+        .whitelist_type("EditorContext")
+        .whitelist_type("EmulateThreeButtonMouse")
+        .whitelist_type("IO")
+        .whitelist_type("EditorContext")
+        .whitelist_type("LinkDetachWithModifierClick")
+        .whitelist_type("Style")
+        .whitelist_type("AttributeFlags")
+        .whitelist_type("ColorStyle")
+        .whitelist_type("PinShape")
+        .whitelist_type("StyleFlags")
+        .whitelist_type("StyleVar")
         .generate()
         .expect("Unable to generate bindings");
 
