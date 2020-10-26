@@ -1,8 +1,22 @@
 #![allow(missing_docs)]
 
+use crate::{sys, EditorContext};
 use imgui::ImColor;
 
-use crate::{sys, Context};
+/// dark color theme
+pub fn set_style_colors_dark(_: &EditorContext) {
+    unsafe { sys::imnodes_StyleColorsDark() };
+}
+
+/// classic color theme
+pub fn set_style_colors_classic(_: &EditorContext) {
+    unsafe { sys::imnodes_StyleColorsClassic() };
+}
+
+/// light color theme
+pub fn set_style_colors_light(_: &EditorContext) {
+    unsafe { sys::imnodes_StyleColorsLight() };
+}
 
 #[derive(Clone)]
 #[repr(i32)]
@@ -30,23 +44,27 @@ pub struct ColorToken {
     ended: bool,
 }
 impl ColorToken {
-    pub fn end(mut self) {
+    pub fn pop(mut self) {
         self.ended = true;
         unsafe { sys::imnodes_PopColorStyle() };
     }
 }
 
-// this could implicitly call end/ pop but thats probably hiding bugs...
+// this could implicitly call pop/ pop but thats probably hiding bugs...
 impl Drop for ColorToken {
     fn drop(&mut self) {
         if !self.ended {
-            panic!("did not call end on a color token");
+            panic!("did not call pop on a color token");
         }
     }
 }
 
-#[must_use = "need to call end on ColorToken befor going out of scope"]
-pub fn push_color_style<C: Into<ImColor>>(style: ColorStyle, color: C, _: &Context) -> ColorToken {
+#[must_use = "need to call pop on ColorToken befor going out of scope"]
+pub fn push_color_style<C: Into<ImColor>>(
+    style: ColorStyle,
+    color: C,
+    _: &EditorContext,
+) -> ColorToken {
     let color: ImColor = color.into();
     unsafe { sys::imnodes_PushColorStyle(style as i32, color.into()) };
     ColorToken { ended: false }
@@ -65,7 +83,7 @@ pub struct StyleVarToken {
     ended: bool,
 }
 impl StyleVarToken {
-    pub fn end(mut self) {
+    pub fn pop(mut self) {
         self.ended = true;
         unsafe { sys::imnodes_PopStyleVar() };
     }
@@ -74,13 +92,13 @@ impl StyleVarToken {
 impl Drop for StyleVarToken {
     fn drop(&mut self) {
         if !self.ended {
-            panic!("did not call end on a style var token");
+            panic!("did not call pop on a style var token");
         }
     }
 }
 
-#[must_use = "need to call end on StyleVarToken befor going out of scope"]
-pub fn push_style_vare(style: StyleVar, value: f32, _: &Context) -> StyleVarToken {
+#[must_use = "need to call pop on StyleVarToken befor going out of scope"]
+pub fn push_style_var(style: StyleVar, value: f32, _: &EditorContext) -> StyleVarToken {
     unsafe { sys::imnodes_PushStyleVar(style as i32, value) };
     StyleVarToken { ended: false }
 }
@@ -117,7 +135,7 @@ pub struct AttributeFlagToken {
     ended: bool,
 }
 impl AttributeFlagToken {
-    pub fn end(mut self) {
+    pub fn pop(mut self) {
         self.ended = true;
         unsafe { sys::imnodes_PopAttributeFlag() };
     }
@@ -126,13 +144,13 @@ impl AttributeFlagToken {
 impl Drop for AttributeFlagToken {
     fn drop(&mut self) {
         if !self.ended {
-            panic!("did not call end on a style var token");
+            panic!("did not call pop on a style var token");
         }
     }
 }
 
-#[must_use = "need to call end on AttributeFlagsToken befor going out of scope"]
-pub fn push_attribute_flag(flag: AttributeFlag, _: &Context) -> AttributeFlagToken {
+#[must_use = "need to call pop on AttributeFlagsToken befor going out of scope"]
+pub fn push_attribute_flag(flag: AttributeFlag, _: &EditorContext) -> AttributeFlagToken {
     unsafe { sys::imnodes_PushAttributeFlag(flag as i32) };
     AttributeFlagToken { ended: false }
 }

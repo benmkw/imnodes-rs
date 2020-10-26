@@ -101,6 +101,10 @@ fn main() {
 
     let mut make_fullscreen = true;
 
+    let first_editor = imnodes_ui.create_editor();
+    let mut second_editor_state_1 = ui::MultiEditState::new(&imnodes_ui);
+    let mut second_editor_state_2 = ui::MultiEditState::new(&imnodes_ui);
+
     // Event loop
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -164,12 +168,34 @@ fn main() {
                         ui.text(im_str!("Hello from imnodes-rs!"));
 
                         ui.checkbox(
-                            im_str!("make the implot window fill the whole outer window"),
+                            im_str!("make the imnodes window fill the whole outer window"),
                             &mut make_fullscreen,
                         );
 
-                        // Show individual examples in collapsed headers
-                        ui::show_basic_node(&ui, &imnodes_ui);
+                        if CollapsingHeader::new(im_str!("hello world")).build(&ui) {
+                            ChildWindow::new(im_str!("1"))
+                                .size([0.0, 0.0])
+                                .build(&ui, || {
+                                    ui::show_hello_world(&ui, &first_editor);
+                                });
+                        }
+
+                        if CollapsingHeader::new(im_str!("multi editor")).build(&ui) {
+                            let width = ui.window_content_region_width() / 2 as f32;
+                            ChildWindow::new(im_str!("2"))
+                                .size([width, 0.0])
+                                .build(&ui, || {
+                                    ui::show_multi_editor(&ui, &mut second_editor_state_1);
+                                });
+
+                            ui.same_line(0.0);
+
+                            ChildWindow::new(im_str!("3"))
+                                .size([width, 0.0])
+                                .build(&ui, || {
+                                    ui::show_multi_editor(&ui, &mut second_editor_state_2);
+                                });
+                        }
                     });
                 }
 

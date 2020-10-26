@@ -1,109 +1,146 @@
-use imgui::{im_str, Ui};
+use imgui::{im_str, Slider, Ui};
 use imnodes::*;
 
-pub fn show_basic_node(ui: &Ui, context: &imnodes::Context) {
-    set_style_colors_classic(&context);
+/// https://github.com/Nelarius/imnodes/blob/master/example/hello.cpp
+pub fn show_hello_world(ui: &Ui, context: &imnodes::EditorContext) {
     let mut id_gen = context.new_identifier_generator();
 
-    let first_node = id_gen.next_node();
-    let second_node = id_gen.next_node();
-
-    let output1 = id_gen.next_output_pin();
-    let input1 = id_gen.next_input_pin();
-
-    let links = [(input1, output1)];
-    let links = links
-        .iter()
-        .map(|(from, to)| (from, to, id_gen.next_link()))
-        .collect::<Vec<_>>();
-
-    let on_snap = push_attribute_flag(AttributeFlag::EnableLinkCreationOnSnap, &context);
-    let detach = push_attribute_flag(AttributeFlag::EnableLinkDetachWithDragClick, &context);
-
-    let outer_scope = editor(&context, |editor| {
-        editor.node(first_node, |node| {
-            node.titlebar(|| {
-                ui.text(im_str!("Node 1: not movable node in rust"));
+    editor(&context, |editor| {
+        editor.node(id_gen.next_node(), |node| {
+            node.add_titlebar(|| {
+                ui.text(im_str!("simple node :)"));
             });
 
-            ui.text(im_str!("text in the node"));
-            ui.spacing();
-
-            node.input(input1, PinShape::Circle, || {
-                ui.text(im_str!("Input 1"));
+            node.add_input(id_gen.next_input_pin(), PinShape::Circle, || {
+                ui.text(im_str!("input"));
             });
 
-            node.output(id_gen.next_output_pin(), PinShape::Triangle, || {
-                ui.text(im_str!("Output 1"));
-            });
-
-            node.output(id_gen.next_output_pin(), PinShape::QuadFilled, || {
-                ui.text(im_str!("Output 2"));
+            node.add_output(id_gen.next_output_pin(), PinShape::QuadFilled, || {
+                ui.text(im_str!("output"));
             });
         });
+    });
+}
 
-        first_node.set_draggable(false);
-        first_node.set_position(500.0, 30.0, CoordinateSystem::GridSpace);
+pub struct MultiEditState {
+    editor_context: EditorContext,
+    id_gen: IdentifierGenerator,
 
-        let color = push_color_style(ColorStyle::TitleBar, [0.0, 1.0, 0.0], &context);
-        let text_color = ui.push_style_color(imgui::StyleColor::Text, [0.0, 0.0, 0.0, 1.0]);
-        editor.node(second_node, |node| {
-            node.titlebar(|| {
-                ui.text(im_str!("Node 2: move me"));
-            });
-            color.end();
-            text_color.pop(&ui);
+    nodes: Vec<Node>,
+    links: Vec<Link>,
+}
 
-            node.input(id_gen.next_input_pin(), PinShape::Circle, || {
-                ui.text(im_str!("Some Input"));
-            });
+struct Link {
+    id: LinkId,
+    start: OutputPinId,
+    end: InputPinId,
+}
+struct Node {
+    id: NodeId,
+    input: InputPinId,
+    output: OutputPinId,
+    attribute: AttributeId,
+    value: f32,
+}
 
-            node.output(output1, PinShape::Triangle, || {
-                ui.text(im_str!("Output 1"));
-            });
+impl MultiEditState {
+    pub fn new(context: &Context) -> Self {
+        let editor_context = context.create_editor();
+        let id_gen = editor_context.new_identifier_generator();
 
-            node.output(id_gen.next_output_pin(), PinShape::QuadFilled, || {
-                ui.text(im_str!("Output 2"));
-            });
+        Self {
+            id_gen,
+            editor_context,
+            nodes: vec![],
+            links: vec![],
+        }
+    }
+}
+
+/// https://github.com/Nelarius/imnodes/blob/master/example/multi_editor.cpp
+pub fn show_multi_editor(ui: &Ui, state: &mut MultiEditState) {
+    set_style_colors_classic(&state.editor_context);
+
+    let on_snap = push_attribute_flag(
+        AttributeFlag::EnableLinkCreationOnSnap,
+        &state.editor_context,
+    );
+    let detach = push_attribute_flag(
+        AttributeFlag::EnableLinkDetachWithDragClick,
+        &state.editor_context,
+    );
+
+    let MultiEditState {
+        editor_context,
+        nodes,
+        links,
+        id_gen,
+        ..
+    } = state;
+
+    let mut add_node_to = |nodes: &mut Vec<Node>| {
+        nodes.push(Node {
+            id: id_gen.next_node(),
+            input: id_gen.next_input_pin(),
+            output: id_gen.next_output_pin(),
+            value: 0.0,
+            attribute: id_gen.next_attribute(),
         });
+    };
 
-        for (input, output, link_id) in links {
-            editor.link(link_id, *input, *output);
+    if ui.button(im_str!("Add a Node"), [0.0, 0.0]) {
+        add_node_to(nodes);
+    }
+
+    let outer_scope = editor(&editor_context, |editor| {
+        // imgui::Key::A as u32 is 16 for me but my "a" is 10 in the ui.io().key_index {
+        if editor.is_hovered() && ui.is_key_released(10) {
+            add_node_to(nodes);
+        }
+
+        for curr_node in nodes.iter_mut() {
+            editor.node(curr_node.id, |node| {
+                node.add_titlebar(|| {
+                    ui.text(im_str!("node"));
+                });
+
+                node.add_input(curr_node.input, PinShape::QuadFilled, || {
+                    ui.text(im_str!("input"));
+                });
+
+                node.attribute(curr_node.attribute, || {
+                    ui.set_next_item_width(130.0);
+                    Slider::new(im_str!("value"))
+                        .range(0.0..=10.0)
+                        .display_format(&im_str!("{:.2}", curr_node.value))
+                        .build(&ui, &mut curr_node.value);
+                });
+
+                node.add_output(curr_node.output, PinShape::CircleFilled, || {
+                    ui.text(im_str!("output"));
+                });
+            });
+        }
+
+        for Link { id, start, end } in links {
+            editor.add_link(*id, *end, *start);
         }
     });
 
-    // if outer_scope.is_hovered(first_node) {
-    //     println!("node one hovered");
-    // }
-    // if outer_scope.is_hovered(second_node) {
-    //     println!("node two hovered");
-    // }
-
-    // if outer_scope.is_hovered(input1) {
-    //     println!("input1  hovered");
-    // }
-    // if outer_scope.is_hovered(output1) {
-    //     println!("output1  hovered");
-    // }
-
-    // // or also possible to call on links
-    // if links[0].2.unwrap().is_hovered(&outer_scope) {
-    //     println!("link1  hovered");
-    // }
-
-    // println!("selected nodes: {:?}", outer_scope.selected_nodes());
-    // println!("selected links: {:?}", outer_scope.selected_links());
-
-    // you have to draw bettween an input and an output and then let go, then it works
-    // this can be customized using AttributeFlag
     if let Some(link) = outer_scope.links_created() {
-        println!("added {:?}", link);
+        state.links.push(Link {
+            id: state.id_gen.next_link(),
+            start: link.start_pin,
+            end: link.end_pin,
+        })
     }
 
-    if let Some(link) = outer_scope.link_removed() {
-        println!("removed {:?}", link);
+    if let Some(link) = outer_scope.get_dropped_link() {
+        state
+            .links
+            .swap_remove(state.links.iter().position(|e| e.id == link).unwrap());
     }
 
-    on_snap.end();
-    detach.end();
+    on_snap.pop();
+    detach.pop();
 }

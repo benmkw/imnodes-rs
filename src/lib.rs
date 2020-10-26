@@ -18,11 +18,14 @@ pub use context::*;
 mod helpers;
 pub use helpers::*;
 
-mod settings;
-pub use settings::*;
+mod styling;
+pub use styling::*;
+
+mod scopes;
+pub use scopes::*;
 
 // maybe wrap those (same decision as in implot-rs)
-pub use sys::{EditorContext, ImVec2, Style};
+pub use sys::{ImVec2, Style};
 
 /// used to generate unique identifers for elements
 pub struct IdentifierGenerator {
@@ -36,6 +39,8 @@ impl IdentifierGenerator {
     pub(crate) fn new() -> Self {
         Self {
             current_node: 0,
+            // input and output pins use the same pool, they must not overlap,
+            // attributes as well as far as I can see
             current_pin: 0,
             current_link: 0,
         }
@@ -62,11 +67,32 @@ impl IdentifierGenerator {
         OutputPinId { id }
     }
 
+    /// Id for an attribute in a Node
+    pub fn next_attribute(&mut self) -> AttributeId {
+        let id = self.current_pin;
+        self.current_pin += 1;
+        AttributeId { id }
+    }
+
     /// Id for a link
     pub fn next_link(&mut self) -> LinkId {
         let id = self.current_link;
         self.current_link += 1;
         LinkId { id }
+    }
+}
+
+/// Identifier for Attributes in nodes
+/// TODO what precise uniqueness constraints do these have?
+#[repr(C)]
+#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+pub struct AttributeId {
+    id: i32,
+}
+
+impl Into<i32> for AttributeId {
+    fn into(self) -> i32 {
+        self.id
     }
 }
 
@@ -100,7 +126,7 @@ impl NodeId {
     }
 
     /// get the size of the node
-    pub fn dimensions(&self) -> ImVec2 {
+    pub fn get_dimensions(&self) -> ImVec2 {
         let mut dimension = ImVec2 { x: 0.0, y: 0.0 };
         unsafe { sys::imnodes_GetNodeDimensions(&mut dimension as _, self.id) };
         dimension
@@ -123,7 +149,7 @@ impl NodeId {
     }
 
     /// get the coordinated of the node
-    pub fn position(&self, coordinate_sytem: CoordinateSystem) -> ImVec2 {
+    pub fn get_position(&self, coordinate_sytem: CoordinateSystem) -> ImVec2 {
         let mut pos = ImVec2 { x: 0.0, y: 0.0 };
 
         match coordinate_sytem {
@@ -158,12 +184,12 @@ pub struct PinId {
 impl PinId {
     /// TODO test
     pub fn is_start_of_link(&self, scope: &ScopeNone) -> bool {
-        Some(*self) == scope.is_link_started()
+        Some(*self) == scope.from_where_link_started()
     }
 
     /// TODO test
     pub fn dropped_link(&self, including_detached_links: bool, scope: &ScopeNone) -> bool {
-        Some(*self) == scope.is_link_dropped(including_detached_links)
+        Some(*self) == scope.from_where_link_dropped(including_detached_links)
     }
 }
 
@@ -213,8 +239,8 @@ pub struct LinkId {
 impl LinkId {
     /// IsLinkDestroyed
     /// checks if the link of this LinkId got removed
-    pub fn removed(&self, scope: &ScopeNone) -> bool {
-        Some(*self) == scope.link_removed()
+    pub fn is_removed(&self, scope: &ScopeNone) -> bool {
+        Some(*self) == scope.get_dropped_link()
     }
 }
 
@@ -230,7 +256,8 @@ pub trait Hoverable {
     /// isNodeHovered
     /// isPinHovered
     /// isLinkHovered
-    /// IsEditorHovered
+    ///
+    /// there is also [is_editor_hovered()] which does not depend on the scope
     fn is_hovered(self, _: &ScopeNone) -> bool;
 }
 
@@ -262,13 +289,6 @@ impl Hoverable for LinkId {
     }
 }
 
-impl Hoverable for ScopeEditor {
-    /// IsEditorHovered
-    fn is_hovered(self, _: &ScopeNone) -> bool {
-        is_editor_hovered()
-    }
-}
-
 /// IsNodeHovered
 pub fn get_hovered_node() -> Option<NodeId> {
     let mut id: i32 = -1;
@@ -280,231 +300,13 @@ pub fn get_hovered_node() -> Option<NodeId> {
     }
 }
 
-/// BeginNodeEditor
-/// ...
-/// EndNodeEditor
-pub fn editor<F: FnOnce(ScopeEditor)>(_scope: &Context, f: F) -> ScopeNone {
-    unsafe { sys::imnodes_BeginNodeEditor() };
-    f(ScopeEditor {});
-    unsafe { sys::imnodes_EndNodeEditor() };
-    ScopeNone {}
-}
-
-/// Original Scopes turned into compile time checks:
-/// Scope_None = 1,
-#[derive(Debug)]
-pub struct ScopeNone {}
-impl ScopeNone {
-    /// check the position of the mosue
-    pub fn is_hovered(&self, id: impl Hoverable) -> bool {
-        id.is_hovered(&self)
-    }
-
-    /// IsLinkStarted
-    pub fn link_started_at<T: Into<PinId>>(&self, id: T) -> bool {
-        let id: PinId = id.into();
-        id.is_start_of_link(self)
-    }
-
-    /// IsLinkDropped
-    pub fn link_dropped_from<T: Into<PinId>>(&self, id: T, including_detached_links: bool) -> bool {
-        let id: PinId = id.into();
-        id.dropped_link(including_detached_links, self)
-    }
-
-    /// NumSelectedNodes
-    /// selected_nodes builds on top of this
-    pub fn num_selected_nodes(&self) -> u32 {
-        let num = unsafe { sys::imnodes_NumSelectedNodes() };
-        assert!(num > 0);
-        num as u32
-    }
-
-    /// NumSelectedLinks
-    /// selected_links builds on top of this
-    pub fn num_selected_links(&self) -> u32 {
-        let num = unsafe { sys::imnodes_NumSelectedLinks() };
-        assert!(num > 0);
-        num as u32
-    }
-
-    /// GetSelectedNodes
-    pub fn selected_nodes(&self) -> Vec<NodeId> {
-        let nr_nodes = self.num_selected_nodes() as usize;
-        let mut nodes = vec![NodeId { id: 0 }; nr_nodes];
-        unsafe { sys::imnodes_GetSelectedNodes(nodes.as_mut_ptr() as _) };
-        nodes
-    }
-
-    /// GetSelectedLinks
-    pub fn selected_links(&self) -> Vec<LinkId> {
-        let nr_links = self.num_selected_links() as usize;
-        let mut links = vec![LinkId { id: 0 }; nr_links];
-        unsafe { sys::imnodes_GetSelectedLinks(links.as_mut_ptr() as _) };
-        links
-    }
-
-    /// IsLinkCreated
-    pub fn links_created(&self) -> Option<Link> {
-        let mut started_at_node_id: i32 = -1;
-        let mut started_at_attribute_id: i32 = -1;
-        let mut ended_at_node_id: i32 = -1;
-        let mut ended_at_attribute_id: i32 = -1;
-        let mut created_from_snap: bool = true;
-
-        let is_created = unsafe {
-            sys::imnodes_IsLinkCreatedIntPtr(
-                &mut started_at_node_id as _,
-                &mut started_at_attribute_id as _,
-                &mut ended_at_node_id as _,
-                &mut ended_at_attribute_id as _,
-                &mut created_from_snap as *mut bool,
-            )
-        };
-
-        // let is_created = unsafe {
-        //     sys::imnodes_IsLinkCreatedBoolPtr(
-        //         &mut started_at_attribute_id as _,
-        //         &mut ended_at_attribute_id as _,
-        //         &mut created_from_snap as *mut bool,
-        //     )
-        // };
-
-        if is_created {
-            Some(Link {
-                start_node: NodeId {
-                    id: started_at_node_id,
-                },
-                end_node: NodeId {
-                    id: ended_at_node_id,
-                },
-                start_pin: OutputPinId {
-                    id: started_at_attribute_id,
-                },
-                end_pin: InputPinId {
-                    id: ended_at_attribute_id,
-                },
-                craeated_from_snap: created_from_snap,
-            })
-        } else {
-            None
-        }
-    }
-
-    /// IsLinkDestroyed
-    /// ... with a bit less drastic naming :D
-    pub fn link_removed(&self) -> Option<LinkId> {
-        let mut id: i32 = -1;
-        if unsafe { sys::imnodes_IsLinkDestroyed(&mut id as _) } {
-            Some(LinkId { id })
-        } else {
-            None
-        }
-    }
-
-    /// IsPinHovered
-    pub fn get_hovered_pin(&self) -> Option<PinId> {
-        let mut id: i32 = -1;
-        let ok = unsafe { sys::imnodes_IsPinHovered(&mut id as _) };
-        if ok {
-            Some(PinId { id })
-        } else {
-            None
-        }
-    }
-
-    /// IsLinkHovered
-    pub fn get_hovered_link(&self) -> Option<LinkId> {
-        let mut id: i32 = -1;
-        let ok = unsafe { sys::imnodes_IsLinkHovered(&mut id as _) };
-        if ok {
-            Some(LinkId { id })
-        } else {
-            None
-        }
-    }
-
-    /// IsLinkStarted
-    pub fn is_link_started(&self) -> Option<PinId> {
-        let mut id: i32 = -1;
-        let ok = unsafe { sys::imnodes_IsLinkStarted(&mut id as _) };
-        if ok {
-            Some(PinId { id })
-        } else {
-            None
-        }
-    }
-
-    /// IsLinkDropped
-    pub fn is_link_dropped(&self, including_detached_links: bool) -> Option<PinId> {
-        let mut id: i32 = -1;
-        let ok = unsafe { sys::imnodes_IsLinkDropped(&mut id as _, including_detached_links) };
-        if ok {
-            Some(PinId { id })
-        } else {
-            None
-        }
-    }
-}
-
-/// cpp makes sure to put the input and output types in the right fields
+#[allow(missing_docs)]
+/// the cpp code makes sure to put the input and output types in the right fields
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct Link {
-    start_node: NodeId,
-    end_node: NodeId,
-    start_pin: OutputPinId,
-    end_pin: InputPinId,
-    craeated_from_snap: bool,
-}
-
-/// Scope_Editor = 1 << 1,
-#[derive(Debug)]
-pub struct ScopeEditor {}
-impl ScopeEditor {
-    /// BeginNode
-    /// ...
-    /// EndNode
-    pub fn node<F: FnOnce(ScopeNode)>(&self, id: NodeId, f: F) {
-        unsafe { sys::imnodes_BeginNode(id.into()) }
-
-        f(ScopeNode {});
-        unsafe { sys::imnodes_EndNode() };
-    }
-
-    /// Link
-    pub fn link(&self, id: LinkId, input: InputPinId, output: OutputPinId) {
-        unsafe { sys::imnodes_Link(id.into(), input.into(), output.into()) }
-    }
-}
-
-/// Scope_Node = 1 << 2,
-#[derive(Debug)]
-pub struct ScopeNode {}
-impl ScopeNode {
-    /// BeginNodeTitleBar
-    /// ....
-    /// EndNodeTitleBar
-    pub fn titlebar<F: FnOnce()>(&self, f: F) {
-        unsafe { sys::imnodes_BeginNodeTitleBar() }
-        f();
-        unsafe { sys::imnodes_EndNodeTitleBar() }
-    }
-
-    /// BeginInputAttribute
-    /// ...
-    /// EndInputAttribute
-    pub fn input<F: FnOnce()>(&self, id: InputPinId, shape: PinShape, f: F) {
-        unsafe { sys::imnodes_BeginInputAttribute(id.into(), shape as i32) };
-        f();
-        unsafe { sys::imnodes_EndInputAttribute() };
-    }
-
-    /// BeginOutputAttribute
-    /// ...
-    /// EndOutputAttribute
-    pub fn output<F: FnOnce()>(&self, id: OutputPinId, shape: PinShape, f: F) {
-        unsafe { sys::imnodes_BeginOutputAttribute(id.into(), shape as i32) };
-        f();
-        unsafe { sys::imnodes_EndOutputAttribute() };
-    }
+    pub start_node: NodeId,
+    pub end_node: NodeId,
+    pub start_pin: OutputPinId,
+    pub end_pin: InputPinId,
+    pub craeated_from_snap: bool,
 }

@@ -1,31 +1,17 @@
 // TOOO look at https://github.com/4bb4/implot-rs/blob/master/src/context.rs and see if this approach makes
 // sense here too
 
-use crate::sys;
+use imnodes_sys as sys;
 
-/// TODO, should this be just implicit?
-pub struct Context {
-    // raw: *mut sys::EditorContext,
+/// needs to be unique for each editor
+pub struct EditorContext {
+    raw: *mut sys::EditorContext,
 }
 
-impl Context {
-    /// create global context
-    pub fn new() -> Self {
-        // let ctx = unsafe { sys::imnodes_EditorContextCreate() };
-        // unsafe { sys::imnodes_EditorContextSet(ctx) };
-        unsafe { sys::imnodes_Initialize() }
-
-        Self {}
-    }
-
-    // pub fn get_nodes_ui(&self) -> NodeUi {
-    //     NodeUi { context: self }
-    // }
-
-    /// GetStyle
-    /// TODO see Steyle_destroy, make sure this does not leak
-    pub fn get_style(&self) -> &mut sys::Style {
-        unsafe { &mut *(sys::imnodes_GetStyle() as *mut sys::Style) }
+impl EditorContext {
+    /// use this context now
+    pub fn set_as_current_editor(&self) {
+        unsafe { sys::imnodes_EditorContextSet(self.raw) };
     }
 
     /// generate Singleton IdentifierGenerator
@@ -34,12 +20,41 @@ impl Context {
     }
 }
 
+impl Drop for EditorContext {
+    fn drop(&mut self) {
+        unsafe {
+            sys::imnodes_EditorContextFree(self.raw);
+        }
+    }
+}
+
+/// imnodes_Initialize
+pub struct Context {}
+
+impl Context {
+    /// create global context
+    pub fn new() -> Self {
+        unsafe { sys::imnodes_Initialize() }
+
+        Self {}
+    }
+
+    /// created the context for one editor/ grid
+    pub fn create_editor(&self) -> EditorContext {
+        EditorContext {
+            raw: unsafe { sys::imnodes_EditorContextCreate() },
+        }
+    }
+
+    /// GetStyle
+    /// TODO see Steyle_destroy, make sure this does not leak
+    pub fn get_style(&self) -> &mut sys::Style {
+        unsafe { &mut *(sys::imnodes_GetStyle() as *mut sys::Style) }
+    }
+}
+
 impl Drop for Context {
     fn drop(&mut self) {
         unsafe { sys::imnodes_Shutdown() }
-
-        // unsafe {
-        // sys::imnodes_EditorContextFree(self.raw);
-        // }
     }
 }
