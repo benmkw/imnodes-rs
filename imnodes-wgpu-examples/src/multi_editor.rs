@@ -1,26 +1,8 @@
 use imgui::{im_str, Slider, Ui};
-use imnodes::*;
-
-/// https://github.com/Nelarius/imnodes/blob/master/example/hello.cpp
-pub fn show_hello_world(ui: &Ui, context: &imnodes::EditorContext) {
-    let mut id_gen = context.new_identifier_generator();
-
-    editor(&context, |editor| {
-        editor.node(id_gen.next_node(), |node| {
-            node.add_titlebar(|| {
-                ui.text(im_str!("simple node :)"));
-            });
-
-            node.add_input(id_gen.next_input_pin(), PinShape::Circle, || {
-                ui.text(im_str!("input"));
-            });
-
-            node.add_output(id_gen.next_output_pin(), PinShape::QuadFilled, || {
-                ui.text(im_str!("output"));
-            });
-        });
-    });
-}
+use imnodes::{
+    editor, AttributeFlag, AttributeId, Context, EditorContext, IdentifierGenerator, InputPinId,
+    LinkId, NodeId, OutputPinId, PinShape,
+};
 
 pub struct MultiEditState {
     editor_context: EditorContext,
@@ -58,17 +40,15 @@ impl MultiEditState {
 }
 
 /// https://github.com/Nelarius/imnodes/blob/master/example/multi_editor.cpp
-pub fn show_multi_editor(ui: &Ui, state: &mut MultiEditState) {
-    set_style_colors_classic(&state.editor_context);
+pub fn show(ui: &Ui, state: &mut MultiEditState) {
+    state.editor_context.set_style_colors_classic();
 
-    let on_snap = push_attribute_flag(
-        AttributeFlag::EnableLinkCreationOnSnap,
-        &state.editor_context,
-    );
-    let detach = push_attribute_flag(
-        AttributeFlag::EnableLinkDetachWithDragClick,
-        &state.editor_context,
-    );
+    let on_snap = state
+        .editor_context
+        .push(AttributeFlag::EnableLinkCreationOnSnap);
+    let detach = state
+        .editor_context
+        .push(AttributeFlag::EnableLinkDetachWithDragClick);
 
     let MultiEditState {
         editor_context,
@@ -99,7 +79,7 @@ pub fn show_multi_editor(ui: &Ui, state: &mut MultiEditState) {
         }
 
         for curr_node in nodes.iter_mut() {
-            editor.node(curr_node.id, |node| {
+            editor.add_node(curr_node.id, |node| {
                 node.add_titlebar(|| {
                     ui.text(im_str!("node"));
                 });

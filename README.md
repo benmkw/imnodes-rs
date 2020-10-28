@@ -12,15 +12,13 @@ its working :) ( image is outdated, works even more now ;) )
 `cargo doc --no-deps --open`
 
 # TODO/ Ideas
-- add https://github.com/Nelarius/imnodes/blob/master/example/color_node_editor.cpp
-- save/ load
+- figure out a better Graph api that is still typesafe and easy to use, revisit this with GAT probably 
 - IO
-    - Mouse/ Modifier
-- Style destroy 
+    - all Mouse/ Modifier helpers
 
 nice to have:
 - use Serde to make it possible to declare graphs and render them
-    - load and save as well
+    - load and save as well using imnode_* functions
 - add comments to everything
     - figure out good descriptions of coordinate systems 
 - review types in unsafe code

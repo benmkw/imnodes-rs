@@ -3,22 +3,24 @@
 use crate::{sys, EditorContext};
 use imgui::ImColor;
 
-/// dark color theme
-pub fn set_style_colors_dark(_: &EditorContext) {
-    unsafe { sys::imnodes_StyleColorsDark() };
+impl EditorContext {
+    /// dark color theme
+    pub fn set_style_colors_dark(&self) {
+        unsafe { sys::imnodes_StyleColorsDark() };
+    }
+
+    /// classic color theme
+    pub fn set_style_colors_classic(&self) {
+        unsafe { sys::imnodes_StyleColorsClassic() };
+    }
+
+    /// light color theme
+    pub fn set_style_colors_light(&self) {
+        unsafe { sys::imnodes_StyleColorsLight() };
+    }
 }
 
-/// classic color theme
-pub fn set_style_colors_classic(_: &EditorContext) {
-    unsafe { sys::imnodes_StyleColorsClassic() };
-}
-
-/// light color theme
-pub fn set_style_colors_light(_: &EditorContext) {
-    unsafe { sys::imnodes_StyleColorsLight() };
-}
-
-#[derive(Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(i32)]
 pub enum ColorStyle {
     NodeBackground = sys::ColorStyle_ColorStyle_NodeBackground,
@@ -37,12 +39,25 @@ pub enum ColorStyle {
     BoxSelectorOutline = sys::ColorStyle_ColorStyle_BoxSelectorOutline,
     GridBackground = sys::ColorStyle_ColorStyle_GridBackground,
     GridLine = sys::ColorStyle_ColorStyle_GridLine,
-    Count = sys::ColorStyle_ColorStyle_Count,
+    // Count = sys::ColorStyle_ColorStyle_Count,
 }
 
+impl ColorStyle {
+    pub const COUNT: i32 = sys::ColorStyle_ColorStyle_Count;
+
+    #[must_use = "need to call pop on ColorToken befor going out of scope"]
+    pub fn push_color<C: Into<ImColor>>(self, color: C, _: &EditorContext) -> ColorToken {
+        let color: ImColor = color.into();
+        unsafe { sys::imnodes_PushColorStyle(self as i32, color.into()) };
+        ColorToken { ended: false }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct ColorToken {
     ended: bool,
 }
+
 impl ColorToken {
     pub fn pop(mut self) {
         self.ended = true;
@@ -59,18 +74,7 @@ impl Drop for ColorToken {
     }
 }
 
-#[must_use = "need to call pop on ColorToken befor going out of scope"]
-pub fn push_color_style<C: Into<ImColor>>(
-    style: ColorStyle,
-    color: C,
-    _: &EditorContext,
-) -> ColorToken {
-    let color: ImColor = color.into();
-    unsafe { sys::imnodes_PushColorStyle(style as i32, color.into()) };
-    ColorToken { ended: false }
-}
-
-#[derive(Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(i32)]
 pub enum StyleVar {
     GridSpacing = sys::StyleVar_StyleVar_GridSpacing,
@@ -79,6 +83,15 @@ pub enum StyleVar {
     NodePaddingVertical = sys::StyleVar_StyleVar_NodePaddingVertical,
 }
 
+impl StyleVar {
+    #[must_use = "need to call pop on StyleVarToken befor going out of scope"]
+    pub fn push_val(self, value: f32, _: &EditorContext) -> StyleVarToken {
+        unsafe { sys::imnodes_PushStyleVar(self as i32, value) };
+        StyleVarToken { ended: false }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct StyleVarToken {
     ended: bool,
 }
@@ -97,21 +110,15 @@ impl Drop for StyleVarToken {
     }
 }
 
-#[must_use = "need to call pop on StyleVarToken befor going out of scope"]
-pub fn push_style_var(style: StyleVar, value: f32, _: &EditorContext) -> StyleVarToken {
-    unsafe { sys::imnodes_PushStyleVar(style as i32, value) };
-    StyleVarToken { ended: false }
-}
-
-#[derive(Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(i32)]
 pub enum StyleFlag {
-    None = sys::StyleFlags_StyleFlags_None,
+    // None = sys::StyleFlags_StyleFlags_None,
     NodeOutline = sys::StyleFlags_StyleFlags_NodeOutline,
     GridLines = sys::StyleFlags_StyleFlags_GridLines,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(i32)]
 pub enum PinShape {
     Circle = sys::PinShape_PinShape_Circle,
@@ -122,7 +129,7 @@ pub enum PinShape {
     QuadFilled = sys::PinShape_PinShape_QuadFilled,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(i32)]
 pub enum AttributeFlag {
     None = sys::AttributeFlags_AttributeFlags_None,
@@ -131,6 +138,15 @@ pub enum AttributeFlag {
     EnableLinkCreationOnSnap = sys::AttributeFlags_AttributeFlags_EnableLinkCreationOnSnap,
 }
 
+impl EditorContext {
+    #[must_use = "need to call pop on AttributeFlagsToken befor going out of scope"]
+    pub fn push(&self, flag: AttributeFlag) -> AttributeFlagToken {
+        unsafe { sys::imnodes_PushAttributeFlag(flag as i32) };
+        AttributeFlagToken { ended: false }
+    }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct AttributeFlagToken {
     ended: bool,
 }
@@ -147,10 +163,4 @@ impl Drop for AttributeFlagToken {
             panic!("did not call pop on a style var token");
         }
     }
-}
-
-#[must_use = "need to call pop on AttributeFlagsToken befor going out of scope"]
-pub fn push_attribute_flag(flag: AttributeFlag, _: &EditorContext) -> AttributeFlagToken {
-    unsafe { sys::imnodes_PushAttributeFlag(flag as i32) };
-    AttributeFlagToken { ended: false }
 }

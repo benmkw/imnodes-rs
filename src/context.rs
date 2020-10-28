@@ -18,6 +18,12 @@ impl EditorContext {
     pub fn new_identifier_generator(&self) -> crate::IdentifierGenerator {
         crate::IdentifierGenerator::new()
     }
+
+    /// GetStyle
+    /// TODO see Steyle_destroy, make sure this does not leak
+    pub fn get_style(&self) -> &mut sys::Style {
+        unsafe { &mut *(sys::imnodes_GetStyle() as *mut sys::Style) }
+    }
 }
 
 impl Drop for EditorContext {
@@ -44,12 +50,6 @@ impl Context {
         EditorContext {
             raw: unsafe { sys::imnodes_EditorContextCreate() },
         }
-    }
-
-    /// GetStyle
-    /// TODO see Steyle_destroy, make sure this does not leak
-    pub fn get_style(&self) -> &mut sys::Style {
-        unsafe { &mut *(sys::imnodes_GetStyle() as *mut sys::Style) }
     }
 }
 

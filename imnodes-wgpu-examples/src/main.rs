@@ -9,8 +9,10 @@ use winit::{
     window::Window,
 };
 
-// the actual implot samples are in there
-mod ui;
+// the actual imnodes samples are in there
+mod color_editor;
+mod hello_world;
+mod multi_editor;
 
 fn main() {
     // Set up window and GPU
@@ -102,8 +104,9 @@ fn main() {
     let mut make_fullscreen = true;
 
     let first_editor = imnodes_ui.create_editor();
-    let mut second_editor_state_1 = ui::MultiEditState::new(&imnodes_ui);
-    let mut second_editor_state_2 = ui::MultiEditState::new(&imnodes_ui);
+    let mut second_editor_state_1 = multi_editor::MultiEditState::new(&imnodes_ui);
+    let mut second_editor_state_2 = multi_editor::MultiEditState::new(&imnodes_ui);
+    let mut color_editor = color_editor::State::new(&imnodes_ui);
 
     // Event loop
     event_loop.run(move |event, _, control_flow| {
@@ -176,7 +179,7 @@ fn main() {
                             ChildWindow::new(im_str!("1"))
                                 .size([0.0, 0.0])
                                 .build(&ui, || {
-                                    ui::show_hello_world(&ui, &first_editor);
+                                    hello_world::show(&ui, &first_editor);
                                 });
                         }
 
@@ -185,7 +188,7 @@ fn main() {
                             ChildWindow::new(im_str!("2"))
                                 .size([width, 0.0])
                                 .build(&ui, || {
-                                    ui::show_multi_editor(&ui, &mut second_editor_state_1);
+                                    multi_editor::show(&ui, &mut second_editor_state_1);
                                 });
 
                             ui.same_line(0.0);
@@ -193,7 +196,15 @@ fn main() {
                             ChildWindow::new(im_str!("3"))
                                 .size([width, 0.0])
                                 .build(&ui, || {
-                                    ui::show_multi_editor(&ui, &mut second_editor_state_2);
+                                    multi_editor::show(&ui, &mut second_editor_state_2);
+                                });
+                        }
+
+                        if CollapsingHeader::new(im_str!("color editor")).build(&ui) {
+                            ChildWindow::new(im_str!("1"))
+                                .size([0.0, 0.0])
+                                .build(&ui, || {
+                                    color_editor::show(&ui, &mut color_editor);
                                 });
                         }
                     });

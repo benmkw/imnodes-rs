@@ -201,7 +201,7 @@ impl ScopeEditor {
     /// BeginNode
     /// ...
     /// EndNode
-    pub fn node<F: FnOnce(ScopeNode)>(&self, id: NodeId, f: F) {
+    pub fn add_node<F: FnOnce(ScopeNode)>(&self, id: NodeId, f: F) {
         unsafe { sys::imnodes_BeginNode(id.into()) }
 
         f(ScopeNode {});
