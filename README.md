@@ -4,15 +4,12 @@
 
 big thanks to 4bb4 for [implot-rs](https://github.com/4bb4/implot-rs) !
 
-its working :) ( image is outdated, works even more now ;) )
-
-![](wip.png)
-
 # docs
 `cargo doc --no-deps --open`
 
 # TODO/ Ideas
 - figure out a better Graph api that is still typesafe and easy to use, revisit this with GAT probably 
+    - look into streaming iterators, split iter API into next() and get_mut() maybe
 - IO
     - all Mouse/ Modifier helpers
 
@@ -22,17 +19,19 @@ nice to have:
 - add comments to everything
     - figure out good descriptions of coordinate systems 
 - review types in unsafe code
+    - especially -> &mut sys::Style
 
 # Example (see `imnodes-wgpu-examples/src/ui.rs`)
 
 ```rust
-// hello world
+use imgui::{im_str, Ui};
+use imnodes::{editor, PinShape};
 
-pub fn show_hello_world(ui: &Ui, context: &imnodes::EditorContext) {
+pub fn show(ui: &Ui, context: &mut imnodes::EditorContext) {
     let mut id_gen = context.new_identifier_generator();
 
-    editor(&context, |editor| {
-        editor.node(id_gen.next_node(), |node| {
+    editor(context, |mut editor| {
+        editor.add_node(id_gen.next_node(), |mut node| {
             node.add_titlebar(|| {
                 ui.text(im_str!("simple node :)"));
             });
@@ -47,4 +46,5 @@ pub fn show_hello_world(ui: &Ui, context: &imnodes::EditorContext) {
         });
     });
 }
+
 ```

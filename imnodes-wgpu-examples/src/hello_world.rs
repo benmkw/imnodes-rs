@@ -2,11 +2,11 @@ use imgui::{im_str, Ui};
 use imnodes::{editor, PinShape};
 
 /// https://github.com/Nelarius/imnodes/blob/master/example/hello.cpp
-pub fn show(ui: &Ui, context: &imnodes::EditorContext) {
+pub fn show(ui: &Ui, context: &mut imnodes::EditorContext) {
     let mut id_gen = context.new_identifier_generator();
 
-    editor(&context, |editor| {
-        editor.add_node(id_gen.next_node(), |node| {
+    editor(context, |mut editor| {
+        editor.add_node(id_gen.next_node(), |mut node| {
             node.add_titlebar(|| {
                 ui.text(im_str!("simple node :)"));
             });

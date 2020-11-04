@@ -2,10 +2,8 @@
 This module contains all the scopes.
 The cpp code requires that certain methods may only be called in certain scopes.
 
-As soon as you enter a deeper scope you are not allowed to call methods from the other scope inside the inner one.
-This is not enforced by the typesystem as I don't want to type so much and the error messages in the asserts in the cpp code will make errors easier to see.
-
-This structure reduces the ammount of runtime errors while also making it eaiser to discover available methods.
+As soon as you enter a nested scope you are not allowed to call methods from the other scope inside the nested one.
+This is why every method which takes a closure and calls it with a new scope takes `&mut self`.
 */
 
 use crate::{
@@ -18,7 +16,7 @@ use crate::{
 /// BeginNodeEditor
 /// ...
 /// EndNodeEditor
-pub fn editor<F: FnOnce(ScopeEditor)>(context: &EditorContext, f: F) -> ScopeNone {
+pub fn editor<F: FnOnce(ScopeEditor)>(context: &mut EditorContext, f: F) -> ScopeNone {
     context.set_as_current_editor();
 
     unsafe { sys::imnodes_BeginNodeEditor() };
@@ -201,7 +199,7 @@ impl ScopeEditor {
     /// BeginNode
     /// ...
     /// EndNode
-    pub fn add_node<F: FnOnce(ScopeNode)>(&self, id: NodeId, f: F) {
+    pub fn add_node<F: FnOnce(ScopeNode)>(&mut self, id: NodeId, f: F) {
         unsafe { sys::imnodes_BeginNode(id.into()) }
 
         f(ScopeNode {});
@@ -237,7 +235,7 @@ impl ScopeNode {
     /// BeginNodeTitleBar
     /// ....
     /// EndNodeTitleBar
-    pub fn add_titlebar<F: FnOnce()>(&self, f: F) {
+    pub fn add_titlebar<F: FnOnce()>(&mut self, f: F) {
         unsafe { sys::imnodes_BeginNodeTitleBar() }
         f();
         unsafe { sys::imnodes_EndNodeTitleBar() }
@@ -246,7 +244,7 @@ impl ScopeNode {
     /// BeginInputAttribute
     /// ...
     /// EndInputAttribute
-    pub fn add_input<F: FnOnce()>(&self, id: InputPinId, shape: PinShape, f: F) {
+    pub fn add_input<F: FnOnce()>(&mut self, id: InputPinId, shape: PinShape, f: F) {
         unsafe { sys::imnodes_BeginInputAttribute(id.into(), shape as i32) };
         f();
         unsafe { sys::imnodes_EndInputAttribute() };
@@ -255,7 +253,7 @@ impl ScopeNode {
     /// BeginOutputAttribute
     /// ...
     /// EndOutputAttribute
-    pub fn add_output<F: FnOnce()>(&self, id: OutputPinId, shape: PinShape, f: F) {
+    pub fn add_output<F: FnOnce()>(&mut self, id: OutputPinId, shape: PinShape, f: F) {
         unsafe { sys::imnodes_BeginOutputAttribute(id.into(), shape as i32) };
         f();
         unsafe { sys::imnodes_EndOutputAttribute() };
@@ -264,7 +262,7 @@ impl ScopeNode {
     /// BeginStaticAttribute
     /// ...
     /// EndStaticAttribute
-    pub fn attribute<F: FnOnce()>(&self, id: AttributeId, f: F) {
+    pub fn attribute<F: FnOnce()>(&mut self, id: AttributeId, f: F) {
         unsafe { sys::imnodes_BeginStaticAttribute(id.into()) };
         f();
         unsafe { sys::imnodes_EndStaticAttribute() };

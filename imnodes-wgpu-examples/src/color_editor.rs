@@ -424,11 +424,11 @@ pub fn show(ui: &Ui, state: &mut State) {
         },
     );
 
-    let outer_scope = editor(&editor_context, |editor| {
+    let outer_scope = editor(editor_context, |mut editor| {
         for curr_node in nodes.nodes.iter_mut() {
             match curr_node.typ {
                 NodeType::Add(AddData { input, output, .. }) => {
-                    editor.add_node(curr_node.id, |node| {
+                    editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
                             ui.text(im_str!("Add"));
                         });
@@ -445,7 +445,7 @@ pub fn show(ui: &Ui, state: &mut State) {
                     });
                 }
                 NodeType::Multiply(MultData { input, output, .. }) => {
-                    editor.add_node(curr_node.id, |node| {
+                    editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
                             ui.text(im_str!("Multiply"));
                         });
@@ -470,7 +470,7 @@ pub fn show(ui: &Ui, state: &mut State) {
                     blue,
                     ..
                 }) => {
-                    editor.add_node(curr_node.id, |node| {
+                    editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
                             ui.text(im_str!("Output"));
                         });
@@ -493,7 +493,7 @@ pub fn show(ui: &Ui, state: &mut State) {
                     });
                 }
                 NodeType::Sine(SineData { input, output, .. }) => {
-                    editor.add_node(curr_node.id, |node| {
+                    editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
                             ui.text(im_str!("Sine"));
                         });
@@ -511,7 +511,7 @@ pub fn show(ui: &Ui, state: &mut State) {
                     });
                 }
                 NodeType::Time(TimeData { output, .. }) => {
-                    editor.add_node(curr_node.id, |node| {
+                    editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
                             ui.text(im_str!("Time"));
                         });
@@ -526,7 +526,7 @@ pub fn show(ui: &Ui, state: &mut State) {
                 NodeType::Value(ValueData {
                     attribute, output, ..
                 }) => {
-                    editor.add_node(curr_node.id, |node| {
+                    editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
                             ui.text(im_str!("Value"));
                         });

@@ -103,7 +103,7 @@ fn main() {
 
     let mut make_fullscreen = true;
 
-    let first_editor = imnodes_ui.create_editor();
+    let mut first_editor = imnodes_ui.create_editor();
     let mut second_editor_state_1 = multi_editor::MultiEditState::new(&imnodes_ui);
     let mut second_editor_state_2 = multi_editor::MultiEditState::new(&imnodes_ui);
     let mut color_editor = color_editor::State::new(&imnodes_ui);
@@ -179,7 +179,7 @@ fn main() {
                             ChildWindow::new(im_str!("1"))
                                 .size([0.0, 0.0])
                                 .build(&ui, || {
-                                    hello_world::show(&ui, &first_editor);
+                                    hello_world::show(&ui, &mut first_editor);
                                 });
                         }
 

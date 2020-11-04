@@ -51,7 +51,7 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
         .push(AttributeFlag::EnableLinkDetachWithDragClick);
 
     let MultiEditState {
-        editor_context,
+        ref mut editor_context,
         nodes,
         links,
         id_gen,
@@ -72,14 +72,14 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
         add_node_to(nodes);
     }
 
-    let outer_scope = editor(&editor_context, |editor| {
+    let outer_scope = editor(editor_context, |mut editor| {
         // imgui::Key::A as u32 is 16 for me but my "a" is 10 in the ui.io().key_index {
         if editor.is_hovered() && ui.is_key_released(10) {
             add_node_to(nodes);
         }
 
         for curr_node in nodes.iter_mut() {
-            editor.add_node(curr_node.id, |node| {
+            editor.add_node(curr_node.id, |mut node| {
                 node.add_titlebar(|| {
                     ui.text(im_str!("node"));
                 });
