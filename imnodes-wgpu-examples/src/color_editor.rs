@@ -114,9 +114,10 @@ fn update(graph: &mut Graph, curr_node_idx: usize, input_pin: Option<InputPinId>
         }
     }
 
-    // TODO do this without clone
-    let nodes = graph.nodes.clone();
-    let curr_node = &mut graph.nodes[curr_node_idx];
+    // TODO do is this the best way to do this?
+    let nodes = &mut graph.nodes;
+    // SAFETY because we have no cycles, `curr_node` is never accessed through `nodes`
+    let curr_node = unsafe { &mut *((&mut nodes[curr_node_idx]) as *mut Node) };
 
     match curr_node.typ {
         NodeType::Add(_) => {
