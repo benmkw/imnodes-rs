@@ -24,8 +24,6 @@ pub use styling::*;
 mod scopes;
 pub use scopes::*;
 
-pub mod graph;
-
 // maybe wrap those (same decision as in implot-rs)
 pub use sys::{ImVec2, Style};
 

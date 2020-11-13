@@ -1,8 +1,8 @@
 use imgui::{im_str, Slider, Ui};
 
 use imnodes::{
-    editor, graph, AttributeFlag, AttributeId, Context, EditorContext, IdentifierGenerator,
-    InputPinId, LinkId, NodeId, OutputPinId, PinShape,
+    editor, AttributeFlag, AttributeId, Context, EditorContext, IdentifierGenerator, InputPinId,
+    LinkId, NodeId, OutputPinId, PinShape,
 };
 
 pub struct State {
@@ -32,43 +32,10 @@ impl Graph {
                     green: 0.1,
                     blue: 0.1,
                 }),
+                updated: false,
             }],
             links: vec![],
         }
-    }
-}
-
-impl imnodes::graph::Graph for Graph {
-    type Node = Node;
-
-    fn get_predecessor_node_indizes_of(&self, input_pin: (InputPinId, usize)) -> Vec<usize> {
-        let links = &self.links;
-        self.nodes
-            .iter()
-            .enumerate()
-            .filter_map(move |(i, output_node)| {
-                if links
-                    .iter()
-                    .any(|link| (input_pin.0 == link.end) && output_node.has_output(link.start))
-                {
-                    Some(i)
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-
-    fn get_node_mut(&mut self, index: usize) -> &mut Self::Node {
-        self.nodes.get_mut(index).unwrap()
-    }
-
-    fn clone_nodes(&self) -> Vec<Self::Node> {
-        self.nodes.clone()
-    }
-
-    fn get_inputs_of_node_at(&self, index: usize) -> Vec<InputPinId> {
-        self.nodes[index].get_inputs()
     }
 }
 
@@ -84,6 +51,8 @@ struct Node {
     id: NodeId,
     typ: NodeType,
     value: f32,
+    // for cycle detection
+    updated: bool,
 }
 
 impl Node {
@@ -93,7 +62,7 @@ impl Node {
             | NodeType::Multiply(MultData { output, .. })
             | NodeType::Sine(SineData { output, .. })
             | NodeType::Time(TimeData { output, .. })
-            | NodeType::Value(ValueData { output, .. }) => output == out,
+            | NodeType::Constant(ValueData { output, .. }) => output == out,
             NodeType::Output(_) => false,
         }
     }
@@ -108,9 +77,99 @@ impl Node {
                 input_blue,
                 ..
             }) => vec![input_red, input_green, input_blue],
-            NodeType::Time(_) | NodeType::Value(_) => vec![],
+            NodeType::Time(_) | NodeType::Constant(_) => vec![],
         }
     }
+}
+
+fn update(graph: &mut Graph, curr_node_idx: usize, input_pin: Option<InputPinId>) {
+    let links = &graph.links;
+
+    let curr_node = graph.nodes[curr_node_idx].clone();
+
+    let predecessors = graph
+        .nodes
+        .iter()
+        .enumerate()
+        .filter_map(|(i, input_node)| {
+            let is_connected = |link: &Link| {
+                if let Some(input_pin) = input_pin {
+                    input_node.has_output(link.start) && input_pin == link.end
+                } else {
+                    input_node.has_output(link.start) && curr_node.get_inputs().contains(&link.end)
+                }
+            };
+
+            match links.iter().any(|link| is_connected(link)) {
+                true => Some(i),
+                false => None,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    for p in &predecessors {
+        if !graph.nodes[*p].updated {
+            graph.nodes[*p].updated = true;
+            update(graph, *p, None);
+        }
+    }
+
+    // TODO do this without clone
+    let nodes = graph.nodes.clone();
+    let curr_node = &mut graph.nodes[curr_node_idx];
+
+    match curr_node.typ {
+        NodeType::Add(_) => {
+            curr_node.value = predecessors
+                .iter()
+                .fold(0.0, |acc, x| acc + nodes[*x].value)
+        }
+        NodeType::Multiply(_) => {
+            curr_node.value = predecessors
+                .iter()
+                .fold(1.0, |acc, x| acc * nodes[*x].value)
+        }
+        NodeType::Output(OutData {
+            ref mut red,
+            ref mut green,
+            ref mut blue,
+            ref input_red,
+            ref input_green,
+            ref input_blue,
+            ..
+        }) => {
+            let total_val = predecessors
+                .iter()
+                .fold(0.0, |acc, x| acc + nodes[*x].value);
+            let input_pin = input_pin.unwrap();
+            if input_pin == *input_red {
+                *red = total_val;
+            } else if input_pin == *input_green {
+                *green = total_val;
+            } else if input_pin == *input_blue {
+                *blue = total_val;
+            }
+        }
+        NodeType::Sine(_) => {
+            curr_node.value = if let Some(input) = predecessors.get(0) {
+                (nodes[*input].value * std::f32::consts::PI).sin()
+            } else {
+                0.0
+            }
+        }
+        NodeType::Time(_) => {
+            curr_node.value = (std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis()
+                % 1000) as f32
+                / 1000.0;
+        }
+        NodeType::Constant(_) => {
+            dbg!(&predecessors.iter().collect::<Vec<_>>());
+            // nothing to do
+        }
+    };
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -120,7 +179,7 @@ enum NodeType {
     Output(OutData),
     Sine(SineData),
     Time(TimeData),
-    Value(ValueData),
+    Constant(ValueData),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -173,12 +232,10 @@ impl State {
         }
     }
 }
+
 /// https://github.com/Nelarius/imnodes/blob/master/example/color_node_editor.cpp
 ///
 /// TODO
-/// - maybe this would be nicer if it had 3 output nodes
-/// - Timer not working yet
-/// - test cycle detection/ behaviour
 /// - add more mouse keyboard modifier
 pub fn show(ui: &Ui, state: &mut State) {
     state.editor_context.set_style_colors_classic();
@@ -207,6 +264,7 @@ pub fn show(ui: &Ui, state: &mut State) {
                     input: state.id_gen.next_input_pin(),
                     output: state.id_gen.next_output_pin(),
                 }),
+                updated: false,
             });
 
             ui.close_current_popup();
@@ -219,6 +277,7 @@ pub fn show(ui: &Ui, state: &mut State) {
                     input: state.id_gen.next_input_pin(),
                     output: state.id_gen.next_output_pin(),
                 }),
+                updated: false,
             });
             ui.close_current_popup();
         }
@@ -230,6 +289,7 @@ pub fn show(ui: &Ui, state: &mut State) {
                     input: state.id_gen.next_input_pin(),
                     output: state.id_gen.next_output_pin(),
                 }),
+                updated: false,
             });
             ui.close_current_popup();
         }
@@ -241,18 +301,20 @@ pub fn show(ui: &Ui, state: &mut State) {
                     input: state.id_gen.next_input_pin(),
                     output: state.id_gen.next_output_pin(),
                 }),
+                updated: false,
             });
             ui.close_current_popup();
         }
-        if ui.button(im_str!("Value"), [0.0, 0.0]) {
+        if ui.button(im_str!("Constant"), [0.0, 0.0]) {
             state.nodes.nodes.push(Node {
                 id: state.id_gen.next_node(),
                 value: 0.0,
-                typ: NodeType::Value(ValueData {
+                typ: NodeType::Constant(ValueData {
                     input: state.id_gen.next_input_pin(),
                     output: state.id_gen.next_output_pin(),
                     attribute: state.id_gen.next_attribute(),
                 }),
+                updated: false,
             });
             ui.close_current_popup();
         }
@@ -281,149 +343,29 @@ pub fn show(ui: &Ui, state: &mut State) {
         ..
     } = state;
 
-    let (input_red, input_green, input_blue) = if let NodeType::Output(OutData {
-        input_red,
-        input_green,
-        input_blue,
-        ..
-    }) = nodes.nodes[0].typ
+    // propagate the values through the graph
     {
-        (input_red, input_green, input_blue)
-    } else {
-        unreachable!()
-    };
+        let (input_red, input_green, input_blue) = if let NodeType::Output(OutData {
+            input_red,
+            input_green,
+            input_blue,
+            ..
+        }) = nodes.nodes[0].typ
+        {
+            (input_red, input_green, input_blue)
+        } else {
+            unreachable!()
+        };
 
-    // for red
-    // on demand evaluates all the nodes which the red output depends on
-    graph::apply_fn(
-        nodes,
-        (input_red, 0),
-        graph::Order::Postorder,
-        |node, predecessors| {
-            match node.typ {
-                NodeType::Add(_) => {
-                    node.value = predecessors.iter().fold(0.0, |acc, x| acc + x.value)
-                }
-                NodeType::Multiply(_) => {
-                    node.value = predecessors.iter().fold(1.0, |acc, x| acc * x.value)
-                }
-                NodeType::Output(OutData { ref mut red, .. }) => {
-                    let total_val = predecessors.iter().fold(0.0, |acc, x| acc + x.value);
-                    *red = total_val;
-                }
-                NodeType::Sine(_) => {
-                    node.value = if let Some(input) = predecessors.iter().next() {
-                        input.value.sin()
-                    } else {
-                        0.0
-                    }
-                }
-                NodeType::Time(_) => {
-                    // TODO
-                    // this does not yet work
-                    node.value = dbg!(
-                        ((std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis()
-                            % 1000)
-                            / 1000) as f32
-                    );
-                }
-                NodeType::Value(_) => {
-                    assert!(predecessors.iter().next().is_none())
-                    // nothing to do
-                }
-            };
-        },
-    );
+        update(nodes, 0, Some(input_red));
+        update(nodes, 0, Some(input_green));
+        update(nodes, 0, Some(input_blue));
+        for node in &mut nodes.nodes {
+            node.updated = false;
+        }
+    }
 
-    // for green
-    // on demand evaluates all the nodes which the green output depends on
-    graph::apply_fn(
-        nodes,
-        (input_green, 0),
-        graph::Order::Postorder,
-        |node, predecessors| {
-            match node.typ {
-                NodeType::Add(_) => {
-                    node.value = predecessors.iter().fold(0.0, |acc, x| acc + x.value)
-                }
-                NodeType::Multiply(_) => {
-                    node.value = predecessors.iter().fold(1.0, |acc, x| acc * x.value)
-                }
-                NodeType::Output(OutData { ref mut green, .. }) => {
-                    let total_val = predecessors.iter().fold(0.0, |acc, x| acc + x.value);
-                    *green = total_val;
-                }
-                NodeType::Sine(_) => {
-                    node.value = if let Some(input) = predecessors.iter().next() {
-                        input.value.sin()
-                    } else {
-                        0.0
-                    }
-                }
-                NodeType::Time(_) => {
-                    node.value = dbg!(
-                        ((std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis()
-                            % 1000)
-                            / 1000) as f32
-                    );
-                }
-                NodeType::Value(_) => {
-                    assert!(predecessors.iter().next().is_none())
-                    // nothing to do
-                }
-            };
-        },
-    );
-
-    // for blue
-    // on demand evaluates all the nodes which the blue output depends on
-    graph::apply_fn(
-        nodes,
-        (input_blue, 0),
-        graph::Order::Postorder,
-        |node, predecessors| {
-            match node.typ {
-                NodeType::Add(_) => {
-                    node.value = predecessors.iter().fold(0.0, |acc, x| acc + x.value)
-                }
-                NodeType::Multiply(_) => {
-                    node.value = predecessors.iter().fold(1.0, |acc, x| acc * x.value)
-                }
-                NodeType::Output(OutData { ref mut blue, .. }) => {
-                    let total_val = predecessors.iter().fold(0.0, |acc, x| acc + x.value);
-                    *blue = total_val;
-                }
-                NodeType::Sine(_) => {
-                    node.value = if let Some(input) = predecessors.iter().next() {
-                        input.value.sin()
-                    } else {
-                        0.0
-                    }
-                }
-                NodeType::Time(_) => {
-                    node.value = dbg!(
-                        ((std::time::SystemTime::now()
-                            .duration_since(std::time::UNIX_EPOCH)
-                            .unwrap()
-                            .as_millis()
-                            % 1000)
-                            / 1000) as f32
-                    );
-                }
-                NodeType::Value(_) => {
-                    assert!(predecessors.iter().next().is_none())
-                    // nothing to do
-                }
-            };
-        },
-    );
-
+    // main node ui
     let outer_scope = editor(editor_context, |mut editor| {
         for curr_node in nodes.nodes.iter_mut() {
             match curr_node.typ {
@@ -523,12 +465,12 @@ pub fn show(ui: &Ui, state: &mut State) {
                         });
                     });
                 }
-                NodeType::Value(ValueData {
+                NodeType::Constant(ValueData {
                     attribute, output, ..
                 }) => {
                     editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
-                            ui.text(im_str!("Value"));
+                            ui.text(im_str!("Constant"));
                         });
 
                         node.attribute(attribute, || {

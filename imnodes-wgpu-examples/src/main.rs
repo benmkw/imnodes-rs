@@ -25,7 +25,7 @@ fn main() {
             width: 1280.0,
             height: 720.0,
         });
-        window.set_title(&"implot-wgpu".to_string());
+        window.set_title(&"imnodes-wgpu".to_string());
         let size = window.inner_size();
 
         let surface = unsafe { instance.create_surface(&window) };
@@ -112,7 +112,6 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 
-        // let plot_ui = implot.get_plot_ui();
         match event {
             Event::WindowEvent {
                 event: WindowEvent::ScaleFactorChanged { scale_factor, .. },
@@ -184,7 +183,7 @@ fn main() {
                         }
 
                         if CollapsingHeader::new(im_str!("multi editor")).build(&ui) {
-                            let width = ui.window_content_region_width() / 2 as f32;
+                            let width = ui.window_content_region_width() / 2_f32;
                             ChildWindow::new(im_str!("2"))
                                 .size([width, 0.0])
                                 .build(&ui, || {
