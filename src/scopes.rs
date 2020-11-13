@@ -245,7 +245,7 @@ impl ScopeNode {
     /// ...
     /// EndInputAttribute
     pub fn add_input<F: FnOnce()>(&mut self, id: InputPinId, shape: PinShape, f: F) {
-        unsafe { sys::imnodes_BeginInputAttribute(id.into(), shape as i32) };
+        unsafe { sys::imnodes_BeginInputAttribute(id.into(), shape as u32) };
         f();
         unsafe { sys::imnodes_EndInputAttribute() };
     }
@@ -254,7 +254,7 @@ impl ScopeNode {
     /// ...
     /// EndOutputAttribute
     pub fn add_output<F: FnOnce()>(&mut self, id: OutputPinId, shape: PinShape, f: F) {
-        unsafe { sys::imnodes_BeginOutputAttribute(id.into(), shape as i32) };
+        unsafe { sys::imnodes_BeginOutputAttribute(id.into(), shape as u32) };
         f();
         unsafe { sys::imnodes_EndOutputAttribute() };
     }

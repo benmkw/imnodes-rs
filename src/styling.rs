@@ -21,7 +21,7 @@ impl EditorContext {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[repr(i32)]
+#[repr(u32)]
 pub enum ColorStyle {
     NodeBackground = sys::ColorStyle_ColorStyle_NodeBackground,
     NodeBackgroundHovered = sys::ColorStyle_ColorStyle_NodeBackgroundHovered,
@@ -43,12 +43,12 @@ pub enum ColorStyle {
 }
 
 impl ColorStyle {
-    pub const COUNT: i32 = sys::ColorStyle_ColorStyle_Count;
+    pub const COUNT: u32 = sys::ColorStyle_ColorStyle_Count;
 
     #[must_use = "need to call pop on ColorToken befor going out of scope"]
     pub fn push_color<C: Into<ImColor>>(self, color: C, _: &EditorContext) -> ColorToken {
         let color: ImColor = color.into();
-        unsafe { sys::imnodes_PushColorStyle(self as i32, color.into()) };
+        unsafe { sys::imnodes_PushColorStyle(self as u32, color.into()) };
         ColorToken { ended: false }
     }
 }
@@ -75,18 +75,28 @@ impl Drop for ColorToken {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[repr(i32)]
+#[repr(u32)]
 pub enum StyleVar {
     GridSpacing = sys::StyleVar_StyleVar_GridSpacing,
     NodeCornerRounding = sys::StyleVar_StyleVar_NodeCornerRounding,
     NodePaddingHorizontal = sys::StyleVar_StyleVar_NodePaddingHorizontal,
     NodePaddingVertical = sys::StyleVar_StyleVar_NodePaddingVertical,
+    NodeBorderThickness = sys::StyleVar_StyleVar_NodeBorderThickness,
+    LinkThickness = sys::StyleVar_StyleVar_LinkThickness,
+    LinkLineSegmentsPerLength = sys::StyleVar_StyleVar_LinkLineSegmentsPerLength,
+    LinkHoverDistance = sys::StyleVar_StyleVar_LinkHoverDistance,
+    PinCircleRadius = sys::StyleVar_StyleVar_PinCircleRadius,
+    PinQuadSideLength = sys::StyleVar_StyleVar_PinQuadSideLength,
+    PinTriangleSideLength = sys::StyleVar_StyleVar_PinTriangleSideLength,
+    PinLineThickness = sys::StyleVar_StyleVar_PinLineThickness,
+    PinHoverRadius = sys::StyleVar_StyleVar_PinHoverRadius,
+    PinOffset = sys::StyleVar_StyleVar_PinOffset,
 }
 
 impl StyleVar {
     #[must_use = "need to call pop on StyleVarToken befor going out of scope"]
     pub fn push_val(self, value: f32, _: &EditorContext) -> StyleVarToken {
-        unsafe { sys::imnodes_PushStyleVar(self as i32, value) };
+        unsafe { sys::imnodes_PushStyleVar(self as u32, value) };
         StyleVarToken { ended: false }
     }
 }
@@ -111,7 +121,7 @@ impl Drop for StyleVarToken {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[repr(i32)]
+#[repr(u32)]
 pub enum StyleFlag {
     // None = sys::StyleFlags_StyleFlags_None,
     NodeOutline = sys::StyleFlags_StyleFlags_NodeOutline,
@@ -119,7 +129,7 @@ pub enum StyleFlag {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[repr(i32)]
+#[repr(u32)]
 pub enum PinShape {
     Circle = sys::PinShape_PinShape_Circle,
     CircleFilled = sys::PinShape_PinShape_CircleFilled,
@@ -130,7 +140,7 @@ pub enum PinShape {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[repr(i32)]
+#[repr(u32)]
 pub enum AttributeFlag {
     None = sys::AttributeFlags_AttributeFlags_None,
     EnableLinkDetachWithDragClick =
@@ -141,7 +151,7 @@ pub enum AttributeFlag {
 impl EditorContext {
     #[must_use = "need to call pop on AttributeFlagsToken befor going out of scope"]
     pub fn push(&self, flag: AttributeFlag) -> AttributeFlagToken {
-        unsafe { sys::imnodes_PushAttributeFlag(flag as i32) };
+        unsafe { sys::imnodes_PushAttributeFlag(flag as u32) };
         AttributeFlagToken { ended: false }
     }
 }

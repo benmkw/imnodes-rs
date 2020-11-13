@@ -12,6 +12,16 @@ impl EditorContext {
     pub fn reset_panning(&self, pos: sys::ImVec2) {
         unsafe { sys::imnodes_EditorContextResetPanning(pos) };
     }
+
+    /// ClearNodeSelection
+    pub fn clear_node_selection(&self) {
+        unsafe { sys::imnodes_ClearNodeSelection() };
+    }
+
+    /// ClearLinkSelection
+    pub fn clear_link_selection(&self) {
+        unsafe { sys::imnodes_ClearLinkSelection() };
+    }
 }
 
 /// IsAttributeActive
