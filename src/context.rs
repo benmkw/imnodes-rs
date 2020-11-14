@@ -10,8 +10,9 @@ pub struct EditorContext {
 
 impl EditorContext {
     /// use this context now
-    pub fn set_as_current_editor(&self) {
+    pub fn set_as_current_editor(&self) -> &Self {
         unsafe { sys::imnodes_EditorContextSet(self.raw) };
+        self
     }
 
     /// generate Singleton IdentifierGenerator
@@ -20,7 +21,7 @@ impl EditorContext {
     }
 
     /// GetStyle
-    /// TODO see Steyle_destroy, make sure this does not leak
+    /// TODO see Style_destroy, make sure this does not leak
     pub fn get_style(&self) -> &mut sys::Style {
         unsafe { &mut *(sys::imnodes_GetStyle() as *mut sys::Style) }
     }

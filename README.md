@@ -2,26 +2,33 @@
 
 ![Tests](https://github.com/benmkw/imnodes-rs/workflows/Tests/badge.svg)
 
-big thanks to 4bb4 for [implot-rs](https://github.com/4bb4/implot-rs) !
+These are bindings for [imnodes](https://github.com/Nelarius/imnodes)
+using [cimnodes](https://github.com/cimgui/cimnodes) for [imgui-rs](https://github.com/Gekkio/imgui-rs).
 
-# docs
+They are inspsired by [implot-rs](https://github.com/4bb4/implot-rs).
+
+![example image](example.png)
+
+## docs
+
 `cargo doc --no-deps --open`
 
-# TODO/ Ideas
-- figure out a better Graph api that is still typesafe and easy to use, revisit this with GAT probably 
-    - look into streaming iterators, split iter API into next() and get_mut() maybe
+## TODO/ Ideas
+
+- add example with salsa or some other incremental computation lib
 - IO
     - all Mouse/ Modifier helpers
 
 nice to have:
+
 - use Serde to make it possible to declare graphs and render them
     - load and save as well using imnode_* functions
 - add comments to everything
-    - figure out good descriptions of coordinate systems 
+    - figure out good descriptions of coordinate systems
 - review types in unsafe code
     - especially -> &mut sys::Style
 
-# Example (see `imnodes-wgpu-examples/src/ui.rs`)
+## Example (see `imnodes-wgpu-examples/src/hello_world.rs`)
 
 ```rust
 use imgui::{im_str, Ui};

@@ -5,18 +5,21 @@ use imgui::ImColor;
 
 impl EditorContext {
     /// dark color theme
-    pub fn set_style_colors_dark(&self) {
+    pub fn set_style_colors_dark(&self) -> &Self {
         unsafe { sys::imnodes_StyleColorsDark() };
+        self
     }
 
     /// classic color theme
-    pub fn set_style_colors_classic(&self) {
+    pub fn set_style_colors_classic(&self) -> &Self {
         unsafe { sys::imnodes_StyleColorsClassic() };
+        self
     }
 
     /// light color theme
-    pub fn set_style_colors_light(&self) {
+    pub fn set_style_colors_light(&self) -> &Self {
         unsafe { sys::imnodes_StyleColorsLight() };
+        self
     }
 }
 

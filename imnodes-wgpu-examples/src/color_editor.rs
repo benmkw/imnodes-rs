@@ -9,7 +9,7 @@ pub struct State {
     editor_context: EditorContext,
     id_gen: IdentifierGenerator,
 
-    nodes: Graph,
+    graph: Graph,
 }
 
 #[derive(Debug, Clone)]
@@ -20,21 +20,42 @@ struct Graph {
 
 impl Graph {
     fn new(id_gen: &mut IdentifierGenerator) -> Self {
+        let output = id_gen.next_node();
+        let red = id_gen.next_input_pin();
+        let constant = id_gen.next_output_pin();
+        // TODO does not work here?
+        // output.set_position(1000.0, 300.0, imnodes::CoordinateSystem::ScreenSpace);
+
         Self {
-            nodes: vec![Node {
-                id: id_gen.next_node(),
-                value: 0.0, // never used
-                typ: NodeType::Output(OutData {
-                    input_red: id_gen.next_input_pin(),
-                    input_green: id_gen.next_input_pin(),
-                    input_blue: id_gen.next_input_pin(),
-                    red: 0.1,
-                    green: 0.1,
-                    blue: 0.1,
-                }),
-                updated: false,
+            nodes: vec![
+                Node {
+                    id: output,
+                    value: 0.0, // never used
+                    typ: NodeType::Output(OutData {
+                        input_red: red,
+                        input_green: id_gen.next_input_pin(),
+                        input_blue: id_gen.next_input_pin(),
+                        red: 0.1,
+                        green: 0.1,
+                        blue: 0.1,
+                    }),
+                    updated: false,
+                },
+                Node {
+                    id: id_gen.next_node(),
+                    typ: NodeType::Constant(ConstData {
+                        output: constant,
+                        attribute: id_gen.next_attribute(),
+                    }),
+                    value: 0.4,
+                    updated: false,
+                },
+            ],
+            links: vec![Link {
+                id: id_gen.next_link(),
+                start: constant,
+                end: red,
             }],
-            links: vec![],
         }
     }
 }
@@ -62,7 +83,7 @@ impl Node {
             | NodeType::Multiply(MultData { output, .. })
             | NodeType::Sine(SineData { output, .. })
             | NodeType::Time(TimeData { output, .. })
-            | NodeType::Constant(ValueData { output, .. }) => output == out,
+            | NodeType::Constant(ConstData { output, .. }) => output == out,
             NodeType::Output(_) => false,
         }
     }
@@ -167,7 +188,7 @@ fn update(graph: &mut Graph, curr_node_idx: usize, input_pin: Option<InputPinId>
                 / 1000.0;
         }
         NodeType::Constant(_) => {
-            dbg!(&predecessors.iter().collect::<Vec<_>>());
+            // &predecessors.iter().collect::<Vec<_>>();
             // nothing to do
         }
     };
@@ -180,7 +201,7 @@ enum NodeType {
     Output(OutData),
     Sine(SineData),
     Time(TimeData),
-    Constant(ValueData),
+    Constant(ConstData),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -214,8 +235,7 @@ struct TimeData {
     output: OutputPinId,
 }
 #[derive(Debug, Clone, PartialEq)]
-struct ValueData {
-    input: InputPinId,
+struct ConstData {
     output: OutputPinId,
     attribute: AttributeId,
 }
@@ -229,7 +249,7 @@ impl State {
         Self {
             id_gen,
             editor_context,
-            nodes,
+            graph: nodes,
         }
     }
 }
@@ -237,100 +257,47 @@ impl State {
 /// https://github.com/Nelarius/imnodes/blob/master/example/color_node_editor.cpp
 ///
 /// TODO
-/// - add more mouse keyboard modifier
+/// - add more mouse keyboard modifiers/ more vibrant colors
 pub fn show(ui: &Ui, state: &mut State) {
     state.editor_context.set_style_colors_classic();
 
+    ui.text(im_str!("press \"A\" or right click to add a Node"));
+
+    // color setup
     let background = if let NodeType::Output(OutData {
         red, green, blue, ..
-    }) = &state.nodes.nodes[0].typ
+    }) = &state.graph.nodes[0].typ
     {
         imnodes::ColorStyle::GridBackground.push_color([*red, *green, *blue], &state.editor_context)
     } else {
         unreachable!()
     };
 
-    let popup_modal = im_str!("popup_add_node");
+    let title_bar_color = imnodes::ColorStyle::TitleBar.push_color(
+        [11.0 / 255.0, 109.0 / 255.0, 191.0 / 255.0],
+        &state.editor_context,
+    );
+    let title_bar_hovered_color = imnodes::ColorStyle::TitleBarHovered.push_color(
+        [45.0 / 255.0, 126.0 / 255.0, 194.0 / 255.0],
+        &state.editor_context,
+    );
+    let title_bar_selected_color = imnodes::ColorStyle::TitleBarSelected.push_color(
+        [81.0 / 255.0, 148.0 / 255.0, 204.0 / 255.0],
+        &state.editor_context,
+    );
 
-    if ui.button(im_str!("Add Node"), [0.0, 0.0]) {
-        ui.open_popup(popup_modal);
-    }
+    let link_color = imnodes::ColorStyle::Link.push_color([0.8, 0.5, 0.1], &state.editor_context);
 
-    ui.popup_modal(popup_modal).build(|| {
-        if ui.button(im_str!("Add"), [0.0, 0.0]) {
-            state.nodes.nodes.push(Node {
-                id: state.id_gen.next_node(),
-                value: 0.0,
-                typ: NodeType::Add(AddData {
-                    input: state.id_gen.next_input_pin(),
-                    output: state.id_gen.next_output_pin(),
-                }),
-                updated: false,
-            });
+    state.graph.nodes[0]
+        .id
+        .set_position(
+            0.9 * ui.window_content_region_width(),
+            300.0,
+            imnodes::CoordinateSystem::ScreenSpace,
+        )
+        .set_draggable(false);
 
-            ui.close_current_popup();
-        }
-        if ui.button(im_str!("Multiply"), [0.0, 0.0]) {
-            state.nodes.nodes.push(Node {
-                id: state.id_gen.next_node(),
-                value: 0.0,
-                typ: NodeType::Multiply(MultData {
-                    input: state.id_gen.next_input_pin(),
-                    output: state.id_gen.next_output_pin(),
-                }),
-                updated: false,
-            });
-            ui.close_current_popup();
-        }
-        if ui.button(im_str!("Sine"), [0.0, 0.0]) {
-            state.nodes.nodes.push(Node {
-                id: state.id_gen.next_node(),
-                value: 0.0,
-                typ: NodeType::Sine(SineData {
-                    input: state.id_gen.next_input_pin(),
-                    output: state.id_gen.next_output_pin(),
-                }),
-                updated: false,
-            });
-            ui.close_current_popup();
-        }
-        if ui.button(im_str!("Time"), [0.0, 0.0]) {
-            state.nodes.nodes.push(Node {
-                id: state.id_gen.next_node(),
-                value: 0.5,
-                typ: NodeType::Time(TimeData {
-                    input: state.id_gen.next_input_pin(),
-                    output: state.id_gen.next_output_pin(),
-                }),
-                updated: false,
-            });
-            ui.close_current_popup();
-        }
-        if ui.button(im_str!("Constant"), [0.0, 0.0]) {
-            state.nodes.nodes.push(Node {
-                id: state.id_gen.next_node(),
-                value: 0.0,
-                typ: NodeType::Constant(ValueData {
-                    input: state.id_gen.next_input_pin(),
-                    output: state.id_gen.next_output_pin(),
-                    attribute: state.id_gen.next_attribute(),
-                }),
-                updated: false,
-            });
-            ui.close_current_popup();
-        }
-
-        ui.separator();
-
-        if ui.button(im_str!("Close"), [0.0, 0.0]) {
-            ui.close_current_popup();
-        }
-
-        ui.separator();
-
-        ui.text_wrapped(&im_str!("{:?}", &state.nodes));
-    });
-
+    // node and link behaviour setup
     let on_snap = state
         .editor_context
         .push(AttributeFlag::EnableLinkCreationOnSnap);
@@ -340,7 +307,8 @@ pub fn show(ui: &Ui, state: &mut State) {
 
     let State {
         ref mut editor_context,
-        ref mut nodes,
+        ref mut graph,
+        ref mut id_gen,
         ..
     } = state;
 
@@ -351,24 +319,150 @@ pub fn show(ui: &Ui, state: &mut State) {
             input_green,
             input_blue,
             ..
-        }) = nodes.nodes[0].typ
+        }) = graph.nodes[0].typ
         {
             (input_red, input_green, input_blue)
         } else {
             unreachable!()
         };
 
-        update(nodes, 0, Some(input_red));
-        update(nodes, 0, Some(input_green));
-        update(nodes, 0, Some(input_blue));
-        for node in &mut nodes.nodes {
+        update(graph, 0, Some(input_red));
+        update(graph, 0, Some(input_green));
+        update(graph, 0, Some(input_blue));
+        for node in &mut graph.nodes {
             node.updated = false;
         }
     }
 
     // main node ui
-    let outer_scope = editor(editor_context, |mut editor| {
-        for curr_node in nodes.nodes.iter_mut() {
+    let outer_scope = create_the_editor(ui, editor_context, graph, id_gen);
+
+    // user interaction handling
+    if let Some(link) = outer_scope.links_created() {
+        state.graph.links.push(Link {
+            id: state.id_gen.next_link(),
+            start: link.start_pin,
+            end: link.end_pin,
+        })
+    }
+
+    if let Some(link) = outer_scope.get_dropped_link() {
+        state
+            .graph
+            .links
+            .swap_remove(state.graph.links.iter().position(|e| e.id == link).unwrap());
+    }
+
+    // cleanup
+    background.pop();
+
+    title_bar_color.pop();
+    title_bar_hovered_color.pop();
+    title_bar_selected_color.pop();
+    link_color.pop();
+
+    on_snap.pop();
+    detach.pop();
+}
+
+/// main node ui
+fn create_the_editor(
+    ui: &Ui,
+    editor_context: &mut EditorContext,
+    graph: &mut Graph,
+    id_gen: &mut IdentifierGenerator,
+) -> imnodes::ScopeNone {
+    editor(editor_context, |mut editor| {
+        let popup_modal = im_str!("popup_add_node");
+
+        if editor.is_hovered()
+            && (ui.is_mouse_clicked(imgui::MouseButton::Right)
+                || ui.is_key_released(ui.key_index(imgui::Key::A)))
+        {
+            ui.open_popup(popup_modal);
+        }
+
+        ui.popup_modal(popup_modal)
+            .resizable(false)
+            .title_bar(false)
+            .build(|| {
+                let size = [100.0, 0.0];
+
+                let mut gen_node = || {
+                    let node = id_gen.next_node();
+                    let [x, y] = ui.mouse_pos_on_opening_current_popup();
+                    node.set_position(x, y, imnodes::CoordinateSystem::ScreenSpace);
+                    node
+                };
+
+                if ui.button(im_str!("Add"), size) {
+                    graph.nodes.push(Node {
+                        id: gen_node(),
+                        value: 0.0,
+                        typ: NodeType::Add(AddData {
+                            input: id_gen.next_input_pin(),
+                            output: id_gen.next_output_pin(),
+                        }),
+                        updated: false,
+                    });
+
+                    ui.close_current_popup();
+                } else if ui.button(im_str!("Multiply"), size) {
+                    graph.nodes.push(Node {
+                        id: gen_node(),
+                        value: 0.0,
+                        typ: NodeType::Multiply(MultData {
+                            input: id_gen.next_input_pin(),
+                            output: id_gen.next_output_pin(),
+                        }),
+                        updated: false,
+                    });
+                    ui.close_current_popup();
+                } else if ui.button(im_str!("Sine"), size) {
+                    graph.nodes.push(Node {
+                        id: gen_node(),
+                        value: 0.0,
+                        typ: NodeType::Sine(SineData {
+                            input: id_gen.next_input_pin(),
+                            output: id_gen.next_output_pin(),
+                        }),
+                        updated: false,
+                    });
+                    ui.close_current_popup();
+                } else if ui.button(im_str!("Time"), size) {
+                    graph.nodes.push(Node {
+                        id: gen_node(),
+                        value: 0.0,
+                        typ: NodeType::Time(TimeData {
+                            input: id_gen.next_input_pin(),
+                            output: id_gen.next_output_pin(),
+                        }),
+                        updated: false,
+                    });
+                    ui.close_current_popup();
+                } else if ui.button(im_str!("Constant"), size) {
+                    graph.nodes.push(Node {
+                        id: gen_node(),
+                        value: 0.0,
+                        typ: NodeType::Constant(ConstData {
+                            output: id_gen.next_output_pin(),
+                            attribute: id_gen.next_attribute(),
+                        }),
+                        updated: false,
+                    });
+                    ui.close_current_popup();
+                }
+
+                ui.separator();
+
+                if ui.button(im_str!("Close"), size) {
+                    ui.close_current_popup();
+                }
+
+                ui.separator();
+            });
+
+        for curr_node in graph.nodes.iter_mut() {
             match curr_node.typ {
                 NodeType::Add(AddData { input, output, .. }) => {
                     editor.add_node(curr_node.id, |mut node| {
@@ -466,7 +560,7 @@ pub fn show(ui: &Ui, state: &mut State) {
                         });
                     });
                 }
-                NodeType::Constant(ValueData {
+                NodeType::Constant(ConstData {
                     attribute, output, ..
                 }) => {
                     editor.add_node(curr_node.id, |mut node| {
@@ -490,27 +584,8 @@ pub fn show(ui: &Ui, state: &mut State) {
             }
         }
 
-        for Link { id, start, end } in &nodes.links {
+        for Link { id, start, end } in &graph.links {
             editor.add_link(*id, *end, *start);
         }
-    });
-
-    if let Some(link) = outer_scope.links_created() {
-        state.nodes.links.push(Link {
-            id: state.id_gen.next_link(),
-            start: link.start_pin,
-            end: link.end_pin,
-        })
-    }
-
-    if let Some(link) = outer_scope.get_dropped_link() {
-        state
-            .nodes
-            .links
-            .swap_remove(state.nodes.links.iter().position(|e| e.id == link).unwrap());
-    }
-
-    background.pop();
-    on_snap.pop();
-    detach.pop();
+    })
 }

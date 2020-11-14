@@ -41,6 +41,10 @@ impl MultiEditState {
 
 /// https://github.com/Nelarius/imnodes/blob/master/example/multi_editor.cpp
 pub fn show(ui: &Ui, state: &mut MultiEditState) {
+    // just as an example, should not be needed anymore
+    // see https://github.com/ocornut/imgui/blob/master/docs/FAQ.md#q-how-can-i-have-multiple-widgets-with-the-same-label
+    let id = ui.push_id(state as *mut MultiEditState);
+
     state.editor_context.set_style_colors_classic();
 
     let on_snap = state
@@ -58,24 +62,37 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
         ..
     } = state;
 
-    let mut add_node_to = |nodes: &mut Vec<Node>| {
+    if ui.button(im_str!("Add a Node"), [0.0, 0.0])
+        || ui.is_mouse_clicked(imgui::MouseButton::Right)
+    {
+        let id = id_gen.next_node();
+
         nodes.push(Node {
-            id: id_gen.next_node(),
+            id,
             input: id_gen.next_input_pin(),
             output: id_gen.next_output_pin(),
             value: 0.0,
             attribute: id_gen.next_attribute(),
         });
-    };
-
-    if ui.button(im_str!("Add a Node"), [0.0, 0.0]) {
-        add_node_to(nodes);
     }
 
+    ui.same_line(0.0);
+
+    ui.text(im_str!("or you can press \"A\" or right click"));
+
     let outer_scope = editor(editor_context, |mut editor| {
-        // imgui::Key::A as u32 is 16 for me but my "a" is 10 in the ui.io().key_index {
-        if editor.is_hovered() && ui.is_key_released(10) {
-            add_node_to(nodes);
+        // TODO is_key_released should probably take a Key and do the lookup internally
+        if editor.is_hovered() && ui.is_key_released(ui.key_index(imgui::Key::A)) {
+            let id = id_gen.next_node();
+            let [x, y] = ui.io().mouse_pos;
+            id.set_position(x, y, imnodes::CoordinateSystem::ScreenSpace);
+            nodes.push(Node {
+                id,
+                input: id_gen.next_input_pin(),
+                output: id_gen.next_output_pin(),
+                value: 0.0,
+                attribute: id_gen.next_attribute(),
+            });
         }
 
         for curr_node in nodes.iter_mut() {
@@ -123,4 +140,5 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
 
     on_snap.pop();
     detach.pop();
+    id.pop(&ui);
 }

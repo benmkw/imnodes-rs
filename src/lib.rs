@@ -83,7 +83,7 @@ impl IdentifierGenerator {
 }
 
 /// Identifier for Attributes in nodes
-/// TODO what precise uniqueness constraints do these have?
+/// TODO document what precise uniqueness constraints do these have
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct AttributeId {
@@ -100,6 +100,7 @@ impl Into<i32> for AttributeId {
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum CoordinateSystem {
     /// TODO
+    /// probably what you want
     ScreenSpace,
     /// TODO
     EditorSpace,
@@ -116,13 +117,15 @@ pub struct NodeId {
 
 impl NodeId {
     /// can the node be moved with the mouse
-    pub fn set_draggable(&self, draggable: bool) {
+    pub fn set_draggable(&self, draggable: bool) -> &Self {
         unsafe { sys::imnodes_SetNodeDraggable(self.id, draggable) };
+        self
     }
 
     /// EditorContextMoveToNode
-    pub fn move_editor_to(&self) {
+    pub fn move_editor_to(&self) -> &Self {
         unsafe { sys::imnodes_EditorContextMoveToNode(self.id) };
+        self
     }
 
     /// get the size of the node
@@ -133,7 +136,7 @@ impl NodeId {
     }
 
     /// move the node
-    pub fn set_position(&self, x: f32, y: f32, coordinate_sytem: CoordinateSystem) {
+    pub fn set_position(&self, x: f32, y: f32, coordinate_sytem: CoordinateSystem) -> &Self {
         let pos = ImVec2 { x, y };
         match coordinate_sytem {
             CoordinateSystem::ScreenSpace => unsafe {
@@ -146,6 +149,7 @@ impl NodeId {
                 sys::imnodes_SetNodeGridSpacePos(self.id, pos)
             },
         };
+        self
     }
 
     /// get the coordinated of the node

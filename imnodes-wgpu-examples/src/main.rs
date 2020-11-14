@@ -101,8 +101,6 @@ fn main() {
     let mut last_frame = Instant::now();
     let mut last_cursor = None;
 
-    let mut make_fullscreen = true;
-
     let mut first_editor = imnodes_ui.create_editor();
     let mut second_editor_state_1 = multi_editor::MultiEditState::new(&imnodes_ui);
     let mut second_editor_state_2 = multi_editor::MultiEditState::new(&imnodes_ui);
@@ -152,27 +150,19 @@ fn main() {
                 let ui = imgui.frame();
 
                 {
-                    let window = imgui::Window::new(im_str!("Hello implot"));
-                    let window = if make_fullscreen {
-                        let border = 10.0;
-                        window.position([0.0, 0.0], Condition::Always).size(
+                    let window = imgui::Window::new(im_str!("Hello imnodes"))
+                        .resizable(false)
+                        .position([0.0, 0.0], Condition::Always)
+                        .size(
                             [
-                                sc_desc.width as f32 / hidpi_factor as f32 - border,
-                                sc_desc.height as f32 / hidpi_factor as f32 - border,
+                                sc_desc.width as f32 / hidpi_factor as f32,
+                                sc_desc.height as f32 / hidpi_factor as f32,
                             ],
                             Condition::Always,
-                        )
-                    } else {
-                        window.size([400.0, 300.0], Condition::FirstUseEver)
-                    };
+                        );
 
                     window.build(&ui, || {
                         ui.text(im_str!("Hello from imnodes-rs!"));
-
-                        ui.checkbox(
-                            im_str!("make the imnodes window fill the whole outer window"),
-                            &mut make_fullscreen,
-                        );
 
                         if CollapsingHeader::new(im_str!("hello world")).build(&ui) {
                             ChildWindow::new(im_str!("1"))
