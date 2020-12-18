@@ -1,6 +1,6 @@
 use futures::executor::block_on;
 use imgui::*;
-use imgui_wgpu::RendererConfig;
+use imgui_wgpu::{Renderer, RendererConfig};
 use std::time::Instant;
 use winit::{
     dpi::LogicalSize,
@@ -52,7 +52,7 @@ fn main() {
     // Set up swap chain
     let mut sc_desc = wgpu::SwapChainDescriptor {
         usage: wgpu::TextureUsage::OUTPUT_ATTACHMENT,
-        format: wgpu::TextureFormat::Bgra8Unorm,
+        format: wgpu::TextureFormat::Bgra8UnormSrgb,
         width: size.width,
         height: size.height,
         present_mode: wgpu::PresentMode::Mailbox,
@@ -62,10 +62,6 @@ fn main() {
 
     // Set up dear imgui
     let mut imgui = imgui::Context::create();
-
-    // Set up dear implot
-    // let implot = implot::Context::create();
-
     // Set up dear imnodes
     let imnodes_ui = imnodes::Context::new();
 
@@ -94,9 +90,12 @@ fn main() {
     //
     // Set up dear imgui wgpu renderer
     //
-    let mut renderer = RendererConfig::new()
-        .set_texture_format(sc_desc.format)
-        .build(&mut imgui, &device, &queue);
+    let renderer_config = RendererConfig {
+        texture_format: sc_desc.format,
+        ..Default::default()
+    };
+
+    let mut renderer = Renderer::new(&mut imgui, &device, &queue, renderer_config);
 
     let mut last_frame = Instant::now();
     let mut last_cursor = None;
@@ -106,7 +105,6 @@ fn main() {
     let mut second_editor_state_2 = multi_editor::MultiEditState::new(&imnodes_ui);
     let mut color_editor = color_editor::State::new(&imnodes_ui);
 
-    // Event loop
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
 

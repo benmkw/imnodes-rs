@@ -10,11 +10,11 @@ readme = "README.md"
 
 [dependencies]
 imnodes-sys = { version = "0.1.0", path = "imnodes-sys" }
-imgui = "0.5.0"
+imgui = "0.6"
 
 [features]
 # export all low level functions
-include_low_level_bindings = [] 
+include_low_level_bindings = []
 
 [workspace]
 members = [
