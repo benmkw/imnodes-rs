@@ -62,13 +62,9 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
         ..
     } = state;
 
-    if ui.button(im_str!("Add a Node"), [0.0, 0.0])
-        || ui.is_mouse_clicked(imgui::MouseButton::Right)
-    {
-        let id = id_gen.next_node();
-
+    if ui.button(im_str!("Add a Node"), [0.0, 0.0]) {
         nodes.push(Node {
-            id,
+            id: id_gen.next_node(),
             input: id_gen.next_input_pin(),
             output: id_gen.next_output_pin(),
             value: 0.0,
@@ -82,7 +78,10 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
 
     let outer_scope = editor(editor_context, |mut editor| {
         // TODO is_key_released should probably take a Key and do the lookup internally
-        if editor.is_hovered() && ui.is_key_released(ui.key_index(imgui::Key::A)) {
+        if editor.is_hovered()
+            && (ui.is_key_released(ui.key_index(imgui::Key::A))
+                || ui.is_mouse_clicked(imgui::MouseButton::Right))
+        {
             let id = id_gen.next_node();
             let [x, y] = ui.io().mouse_pos;
             id.set_position(x, y, imnodes::CoordinateSystem::ScreenSpace);
