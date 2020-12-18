@@ -10,8 +10,6 @@ const CPP_FILES: &[&str] = &[
     "third-party/cimnodes/imnodes/imnodes.cpp",
 ];
 
-const IMNODES_INCLUDE_DIRECTORIES: &[&str] = &["third-party/cimnodes/imnodes/"];
-
 fn assert_file_exists(path: &str) -> io::Result<()> {
     match fs::metadata(path) {
         Ok(_) => Ok(()),
@@ -26,40 +24,43 @@ fn assert_file_exists(path: &str) -> io::Result<()> {
 }
 
 fn main() -> io::Result<()> {
-    // --- Compile cimnodes
+    // Compile cimnodes
     let mut build = cc::Build::new();
-    build.cpp(true);
 
     // Take over imgui preprocessor defines from the imgui-sys crate.
     // Taken from https://github.com/aloucks/imguizmo-rs/blob/master/imguizmo-sys/build.rs
-    for (key, val) in env::vars().filter(|(key, _)| key.starts_with("DEP_IMGUI_DEFINE_")) {
-        let key = key.trim_start_matches("DEP_IMGUI_DEFINE_");
-        let val = if !val.is_empty() {
-            Some(val.as_str())
-        } else {
-            None
-        };
-        build.define(key, val);
-    }
-
-    let cimgui_include_path =
-        env::var_os("DEP_IMGUI_THIRD_PARTY").expect("DEP_IMGUI_THIRD_PARTY not defined");
-    let imgui_include_path = Path::new(&cimgui_include_path).join("imgui");
-    build.include(&cimgui_include_path);
-    build.include(&imgui_include_path);
-    for path in IMNODES_INCLUDE_DIRECTORIES {
-        build.include(path);
-    }
-
-    // Taken from the imgui-sys build as well
-    build.flag_if_supported("-Wno-return-type-c-linkage");
-    build.flag_if_supported("-Wno-unused-parameter");
-    build.flag_if_supported("-std=c++11");
+    env::vars()
+        .filter_map(|(key, val)| {
+            key.strip_prefix("DEP_IMGUI_DEFINE_")
+                .and_then(|suffix| Some((suffix.to_string(), val.to_string())))
+        })
+        .for_each(|(key, value)| {
+            build.define(&key, value.as_str());
+        });
 
     for path in CPP_FILES {
         assert_file_exists(path)?;
         build.file(path);
     }
-    build.compile("cimnodes");
+
+    let cimgui_include_path =
+        env::var_os("DEP_IMGUI_THIRD_PARTY").expect("DEP_IMGUI_THIRD_PARTY not defined");
+    let imgui_include_path = Path::new(&cimgui_include_path).join("imgui");
+
+    build
+        .include(&cimgui_include_path)
+        .include(&imgui_include_path)
+        .include("third-party/cimnodes/imnodes/")
+        .warnings(false)
+        .cpp(true)
+        .flag("-std=c++11")
+        .compile("cimnodes");
+
+    // not sure if this is a great idea but imgui does it as well so lets see if this breaks some day ;)
+    let compiler = build.get_compiler();
+    if compiler.is_like_gnu() || compiler.is_like_clang() {
+        build.flag("-fno-exceptions").flag("-fno-rtti");
+    }
+
     Ok(())
 }
