@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use crate::{sys, EditorContext};
-use imgui::ImColor;
+use imgui::color::ImColor32;
 
 impl EditorContext {
     /// dark color theme
@@ -49,8 +49,8 @@ impl ColorStyle {
     pub const COUNT: u32 = sys::ColorStyle_ColorStyle_Count;
 
     #[must_use = "need to call pop on ColorToken befor going out of scope"]
-    pub fn push_color<C: Into<ImColor>>(self, color: C, _: &EditorContext) -> ColorToken {
-        let color: ImColor = color.into();
+    pub fn push_color<C: Into<ImColor32>>(self, color: C, _: &EditorContext) -> ColorToken {
+        let color: ImColor32 = color.into();
         unsafe { sys::imnodes_PushColorStyle(self as u32, color.into()) };
         ColorToken { ended: false }
     }

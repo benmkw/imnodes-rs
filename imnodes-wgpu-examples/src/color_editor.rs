@@ -377,7 +377,7 @@ fn create_the_editor(
 
         if editor.is_hovered()
             && (ui.is_mouse_clicked(imgui::MouseButton::Right)
-                || ui.is_key_released(ui.key_index(imgui::Key::A)))
+                || ui.is_key_released(imgui::Key::A))
         {
             ui.open_popup(popup_modal);
         }

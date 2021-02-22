@@ -10,7 +10,7 @@ build = "build.rs"
 links = "imnodes"
 
 [dependencies]
-imgui-sys = "0.6"
+imgui-sys = "0.7"
 
 [build-dependencies]
 cc = "1.0"

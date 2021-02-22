@@ -77,9 +77,8 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
     ui.text(im_str!("or you can press \"A\" or right click"));
 
     let outer_scope = editor(editor_context, |mut editor| {
-        // TODO is_key_released should probably take a Key and do the lookup internally
         if editor.is_hovered()
-            && (ui.is_key_released(ui.key_index(imgui::Key::A))
+            && (ui.is_key_released(imgui::Key::A)
                 || ui.is_mouse_clicked(imgui::MouseButton::Right))
         {
             let id = id_gen.next_node();
