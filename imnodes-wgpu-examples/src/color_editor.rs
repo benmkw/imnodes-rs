@@ -376,8 +376,7 @@ fn create_the_editor(
         let popup_modal = im_str!("popup_add_node");
 
         if editor.is_hovered()
-            && (ui.is_mouse_clicked(imgui::MouseButton::Right)
-                || ui.is_key_released(imgui::Key::A))
+            && (ui.is_mouse_clicked(imgui::MouseButton::Right) || ui.is_key_released(imgui::Key::A))
         {
             ui.open_popup(popup_modal);
         }

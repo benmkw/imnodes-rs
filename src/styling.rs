@@ -1,7 +1,7 @@
 #![allow(missing_docs)]
 
 use crate::{sys, EditorContext};
-use imgui::color::ImColor32;
+use imgui::ImColor32;
 
 impl EditorContext {
     /// dark color theme

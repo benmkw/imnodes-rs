@@ -78,8 +78,7 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
 
     let outer_scope = editor(editor_context, |mut editor| {
         if editor.is_hovered()
-            && (ui.is_key_released(imgui::Key::A)
-                || ui.is_mouse_clicked(imgui::MouseButton::Right))
+            && (ui.is_key_released(imgui::Key::A) || ui.is_mouse_clicked(imgui::MouseButton::Right))
         {
             let id = id_gen.next_node();
             let [x, y] = ui.io().mouse_pos;
