@@ -83,6 +83,7 @@ impl IdentifierGenerator {
 }
 
 /// Identifier for Attributes in nodes
+///
 /// TODO document what precise uniqueness constraints do these have
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
@@ -96,15 +97,22 @@ impl Into<i32> for AttributeId {
     }
 }
 
-/// TODO look this up
+/// The node's position can be expressed in three coordinate systems:
+/// * screen space coordinates, -- the origin is the upper left corner of the window.
+/// * editor space coordinates -- the origin is the upper left corner of the node editor window
+/// * grid space coordinates, -- the origin is the upper left corner of the node editor window,
+///
+/// translated by the current editor panning vector (see [EditorContext::get_panning()] and
+/// [EditorContext::reset_panning()])
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum CoordinateSystem {
-    /// TODO
     /// probably what you want
+    ///
+    /// the origin is the upper left corner of the window
     ScreenSpace,
-    /// TODO
+    /// the origin is the upper left corner of the node editor window
     EditorSpace,
-    /// TODO
+    /// the origin is the upper left corner of the node editor window
     GridSpace,
 }
 
@@ -116,19 +124,22 @@ pub struct NodeId {
 }
 
 impl NodeId {
-    /// can the node be moved with the mouse
+    /// Enable or disable the ability to click and drag a specific node.
+    #[doc(alias = "SetNodeDraggable")]
     pub fn set_draggable(&self, draggable: bool) -> &Self {
         unsafe { sys::imnodes_SetNodeDraggable(self.id, draggable) };
         self
     }
 
     /// EditorContextMoveToNode
+    #[doc(alias = "EditorContextMoveToNode")]
     pub fn move_editor_to(&self) -> &Self {
         unsafe { sys::imnodes_EditorContextMoveToNode(self.id) };
         self
     }
 
     /// get the size of the node
+    #[doc(alias = "GetNodeDimensions")]
     pub fn get_dimensions(&self) -> ImVec2 {
         let mut dimension = ImVec2 { x: 0.0, y: 0.0 };
         unsafe { sys::imnodes_GetNodeDimensions(&mut dimension as _, self.id) };
@@ -136,6 +147,11 @@ impl NodeId {
     }
 
     /// move the node
+    #[doc(
+        alias = "SetNodeScreenSpacePos",
+        alias = "SetNodeEditorSpacePos",
+        alias = "SetNodeGridSpacePos"
+    )]
     pub fn set_position(&self, x: f32, y: f32, coordinate_sytem: CoordinateSystem) -> &Self {
         let pos = ImVec2 { x, y };
         match coordinate_sytem {
@@ -152,7 +168,12 @@ impl NodeId {
         self
     }
 
-    /// get the coordinated of the node
+    /// get the position of the node
+    #[doc(
+        alias = "GetNodeScreenSpacePos",
+        alias = "GetNodeEditorSpacePos",
+        alias = "GetNodeGridSpacePos"
+    )]
     pub fn get_position(&self, coordinate_sytem: CoordinateSystem) -> ImVec2 {
         let mut pos = ImVec2 { x: 0.0, y: 0.0 };
 
@@ -179,6 +200,7 @@ impl Into<i32> for NodeId {
 }
 
 /// either input or output pin
+///
 /// like attribute_id in the original source
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct PinId {
@@ -187,12 +209,23 @@ pub struct PinId {
 
 impl PinId {
     /// TODO test
-    pub fn is_start_of_link(&self, scope: &ScopeNone) -> bool {
+    ///
+    /// Did the user start dragging a new link from a pin?
+    #[doc(alias = "IsLinkStarted")]
+    pub fn is_start_of_link(&self, scope: &OuterScope) -> bool {
         Some(*self) == scope.from_where_link_started()
     }
 
     /// TODO test
-    pub fn dropped_link(&self, including_detached_links: bool, scope: &ScopeNone) -> bool {
+    ///
+    /// Did the user drop the dragged link before attaching it to a pin?
+    /// There are two different kinds of situations to consider when handling this event:
+    /// 1) a link which is created at a pin and then dropped
+    /// 2) an existing link which is detached from a pin and then dropped
+    ///
+    /// Use the including_detached_links flag to control whether this function triggers when the user detaches a link and drops it.
+    #[doc(alias = "IsLinkDropped")]
+    pub fn dropped_link(&self, including_detached_links: bool, scope: &OuterScope) -> bool {
         Some(*self) == scope.from_where_link_dropped(including_detached_links)
     }
 }
@@ -234,16 +267,15 @@ impl Into<PinId> for OutputPinId {
 }
 
 /// Id for a link
-#[repr(C)]
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct LinkId {
     id: i32,
 }
 
 impl LinkId {
-    /// IsLinkDestroyed
     /// checks if the link of this LinkId got removed
-    pub fn is_removed(&self, scope: &ScopeNone) -> bool {
+    #[doc(alias = "IsLinkDestroyed")]
+    pub fn is_removed(&self, scope: &OuterScope) -> bool {
         Some(*self) == scope.get_dropped_link()
     }
 }
@@ -256,44 +288,52 @@ impl Into<i32> for LinkId {
 
 /// makes it possible to detect if the mouse if at the positoin of the element
 pub trait Hoverable {
-    /// dispatches to one of the following:
-    /// isNodeHovered
-    /// isPinHovered
-    /// isLinkHovered
+    /// The following functions return true if a UI element is being hovered over by the mouse cursor.
+    /// Assigns the id of the UI element being hovered over to the function argument.
     ///
-    /// there is also [is_editor_hovered()] which does not depend on the scope
-    fn is_hovered(self, _: &ScopeNone) -> bool;
+    /// there is also [`crate::scopes::EditorScope::is_hovered()`] which does not depend on the scope
+    #[doc(
+        alias = "IsPinHovered",
+        alias = "IsNodeHovered",
+        alias = "IsLinkHovered"
+    )]
+    fn is_hovered(&self, _: &OuterScope) -> bool;
 }
 
 impl Hoverable for OutputPinId {
     /// isPinHovered
-    fn is_hovered(self, scope: &ScopeNone) -> bool {
+    #[doc(alias = "IsPinHovered")]
+    fn is_hovered(&self, scope: &OuterScope) -> bool {
         Some(PinId { id: self.id }) == scope.get_hovered_pin()
     }
 }
 
 impl Hoverable for InputPinId {
     /// isPinHovered
-    fn is_hovered(self, scope: &ScopeNone) -> bool {
+    #[doc(alias = "IsPinHovered")]
+    fn is_hovered(&self, scope: &OuterScope) -> bool {
         Some(PinId { id: self.id }) == scope.get_hovered_pin()
     }
 }
 
 impl Hoverable for NodeId {
     /// isNodeHovered
-    fn is_hovered(self, _: &ScopeNone) -> bool {
-        Some(self) == get_hovered_node()
+    #[doc(alias = "IsNodeHovered")]
+    fn is_hovered(&self, _: &OuterScope) -> bool {
+        Some(*self) == get_hovered_node()
     }
 }
 
 impl Hoverable for LinkId {
     /// isLinkHovered
-    fn is_hovered(self, scope: &ScopeNone) -> bool {
-        Some(self) == scope.get_hovered_link()
+    #[doc(alias = "IsLinkHovered")]
+    fn is_hovered(&self, scope: &OuterScope) -> bool {
+        Some(*self) == scope.get_hovered_link()
     }
 }
 
 /// IsNodeHovered
+#[doc(alias = "IsNodeHovered")]
 pub fn get_hovered_node() -> Option<NodeId> {
     let mut id: i32 = -1;
     let ok = unsafe { sys::imnodes_IsNodeHovered(&mut id as _) };

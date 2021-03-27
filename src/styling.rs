@@ -5,18 +5,21 @@ use imgui::ImColor32;
 
 impl EditorContext {
     /// dark color theme
+    #[doc(alias = "StyleColorsDark")]
     pub fn set_style_colors_dark(&self) -> &Self {
         unsafe { sys::imnodes_StyleColorsDark() };
         self
     }
 
     /// classic color theme
+    #[doc(alias = "StyleColorsClassic")]
     pub fn set_style_colors_classic(&self) -> &Self {
         unsafe { sys::imnodes_StyleColorsClassic() };
         self
     }
 
     /// light color theme
+    #[doc(alias = "StyleColorsLight")]
     pub fn set_style_colors_light(&self) -> &Self {
         unsafe { sys::imnodes_StyleColorsLight() };
         self
@@ -49,6 +52,7 @@ impl ColorStyle {
     pub const COUNT: u32 = sys::ColorStyle_ColorStyle_Count;
 
     #[must_use = "need to call pop on ColorToken befor going out of scope"]
+    #[doc(alias = "PushColorStyle")]
     pub fn push_color<C: Into<ImColor32>>(self, color: C, _: &EditorContext) -> ColorToken {
         let color: ImColor32 = color.into();
         unsafe { sys::imnodes_PushColorStyle(self as u32, color.into()) };
@@ -62,6 +66,7 @@ pub struct ColorToken {
 }
 
 impl ColorToken {
+    #[doc(alias = "PopColorStyle")]
     pub fn pop(mut self) {
         self.ended = true;
         unsafe { sys::imnodes_PopColorStyle() };
@@ -77,6 +82,7 @@ impl Drop for ColorToken {
     }
 }
 
+/// The default size of each pin shape is balanced to occupy approximately the same surface area on the screen.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(u32)]
 pub enum StyleVar {
@@ -88,16 +94,23 @@ pub enum StyleVar {
     LinkThickness = sys::StyleVar_StyleVar_LinkThickness,
     LinkLineSegmentsPerLength = sys::StyleVar_StyleVar_LinkLineSegmentsPerLength,
     LinkHoverDistance = sys::StyleVar_StyleVar_LinkHoverDistance,
+    /// The circle radius used when the pin shape is either [PinShape::Circle] or [PinShape::CircleFilled].
     PinCircleRadius = sys::StyleVar_StyleVar_PinCircleRadius,
+    /// The quad side length used when the shape is either [PinShape::Quad] or [PinShape::QuadFilled].
     PinQuadSideLength = sys::StyleVar_StyleVar_PinQuadSideLength,
+    /// The equilateral triangle side length used when the pin shape is either [PinShape::Triangle] or [PinShape::TriangleFilled].
     PinTriangleSideLength = sys::StyleVar_StyleVar_PinTriangleSideLength,
+    /// The thickness of the line used when the pin shape is not filled.
     PinLineThickness = sys::StyleVar_StyleVar_PinLineThickness,
+    /// The radius from the pin's center position inside of which it is detected as being hovered over.
     PinHoverRadius = sys::StyleVar_StyleVar_PinHoverRadius,
+    /// Offsets the pins' positions from the edge of the node to the outside of the node.
     PinOffset = sys::StyleVar_StyleVar_PinOffset,
 }
 
 impl StyleVar {
     #[must_use = "need to call pop on StyleVarToken befor going out of scope"]
+    #[doc(alias = "PushStyleVar")]
     pub fn push_val(self, value: f32, _: &EditorContext) -> StyleVarToken {
         unsafe { sys::imnodes_PushStyleVar(self as u32, value) };
         StyleVarToken { ended: false }
@@ -109,6 +122,7 @@ pub struct StyleVarToken {
     ended: bool,
 }
 impl StyleVarToken {
+    #[doc(alias = "PopStyleVar")]
     pub fn pop(mut self) {
         self.ended = true;
         unsafe { sys::imnodes_PopStyleVar() };
@@ -131,6 +145,7 @@ pub enum StyleFlag {
     GridLines = sys::StyleFlags_StyleFlags_GridLines,
 }
 
+/// This enum controls the way attribute pins look.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(u32)]
 pub enum PinShape {
@@ -142,17 +157,28 @@ pub enum PinShape {
     QuadFilled = sys::PinShape_PinShape_QuadFilled,
 }
 
+/// This enum controls the way the attribute pins behave.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(u32)]
 pub enum AttributeFlag {
     None = sys::AttributeFlags_AttributeFlags_None,
+    /// Allow detaching a link by left-clicking and dragging the link at a pin it is connected to.
+    /// NOTE: the user has to actually delete the link for this to work. A deleted link can be
+    /// detected by calling [crate::LinkId::is_removed()] after [crate::scopes::editor()].
     EnableLinkDetachWithDragClick =
         sys::AttributeFlags_AttributeFlags_EnableLinkDetachWithDragClick,
+    /// Visual snapping of an in progress link will trigger IsLink Created/Destroyed events. Allows
+    /// for previewing the creation of a link while dragging it across attributes. See here for demo:
+    /// <https://github.com/Nelarius/imnodes/issues/41#issuecomment-647132113> NOTE: the user has to
+    /// actually delete the link for this to work. A deleted link can be detected by calling
+    /// [crate::LinkId::is_removed()] after [crate::scopes::editor()].
     EnableLinkCreationOnSnap = sys::AttributeFlags_AttributeFlags_EnableLinkCreationOnSnap,
 }
 
 impl EditorContext {
+    /// Push a single AttributeFlags value. By default, only AttributeFlags_None is set.
     #[must_use = "need to call pop on AttributeFlagsToken befor going out of scope"]
+    #[doc(alias = "PushAttributeFlag")]
     pub fn push(&self, flag: AttributeFlag) -> AttributeFlagToken {
         unsafe { sys::imnodes_PushAttributeFlag(flag as u32) };
         AttributeFlagToken { ended: false }
@@ -164,6 +190,7 @@ pub struct AttributeFlagToken {
     ended: bool,
 }
 impl AttributeFlagToken {
+    #[doc(alias = "PopAttributeFlag")]
     pub fn pop(mut self) {
         self.ended = true;
         unsafe { sys::imnodes_PopAttributeFlag() };

@@ -1,17 +1,19 @@
 // TOOO look at https://github.com/4bb4/implot-rs/blob/master/src/context.rs and see if this approach makes
 // sense here too
 
-use imnodes_sys as sys;
-
-/// needs to be unique for each editor
+/// An editor context corresponds to a set of nodes in a single workspace
+///
+/// By default, the library creates an editor context behind the scenes, so using any of the imnodes
+/// functions doesn't require you to explicitly create a context.
 pub struct EditorContext {
-    raw: *mut sys::EditorContext,
+    raw: *mut imnodes_sys::EditorContext,
 }
 
 impl EditorContext {
     /// use this context now
+    #[doc(alias = "EditorContextSet")]
     pub fn set_as_current_editor(&self) -> &Self {
-        unsafe { sys::imnodes_EditorContextSet(self.raw) };
+        unsafe { imnodes_sys::imnodes_EditorContextSet(self.raw) };
         self
     }
 
@@ -22,28 +24,32 @@ impl EditorContext {
 
     /// GetStyle
     /// TODO see Style_destroy, make sure this does not leak
-    pub fn get_style(&self) -> &mut sys::Style {
-        unsafe { &mut *(sys::imnodes_GetStyle() as *mut sys::Style) }
+    /// Returns the global style struct. See the struct declaration for default values.
+    #[doc(alias = "GetStyle")]
+    pub fn get_style(&self) -> &mut imnodes_sys::Style {
+        unsafe { &mut *(imnodes_sys::imnodes_GetStyle() as *mut imnodes_sys::Style) }
     }
 }
 
 impl Drop for EditorContext {
+    #[doc(alias = "EditorContextFree")]
     fn drop(&mut self) {
         unsafe {
-            sys::imnodes_EditorContextFree(self.raw);
+            imnodes_sys::imnodes_EditorContextFree(self.raw);
         }
     }
 }
 
 /// imnodes_CreateContext
+#[doc(alias = "CreateContext")]
 pub struct Context {
-    context: *mut sys::Context,
+    context: *mut imnodes_sys::Context,
 }
 
 impl Context {
     /// create global context
     pub fn new() -> Self {
-        let context = unsafe { sys::imnodes_CreateContext() };
+        let context = unsafe { imnodes_sys::imnodes_CreateContext() };
 
         Self { context }
     }
@@ -51,13 +57,13 @@ impl Context {
     /// created the context for one editor/ grid
     pub fn create_editor(&self) -> EditorContext {
         EditorContext {
-            raw: unsafe { sys::imnodes_EditorContextCreate() },
+            raw: unsafe { imnodes_sys::imnodes_EditorContextCreate() },
         }
     }
 }
 
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe { sys::imnodes_DestroyContext(self.context) }
+        unsafe { imnodes_sys::imnodes_DestroyContext(self.context) }
     }
 }

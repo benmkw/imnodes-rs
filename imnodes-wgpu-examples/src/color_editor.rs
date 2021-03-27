@@ -371,7 +371,7 @@ fn create_the_editor(
     editor_context: &mut EditorContext,
     graph: &mut Graph,
     id_gen: &mut IdentifierGenerator,
-) -> imnodes::ScopeNone {
+) -> imnodes::OuterScope {
     editor(editor_context, |mut editor| {
         let popup_modal = im_str!("popup_add_node");
 
