@@ -4,6 +4,11 @@ pub type __darwin_size_t = ::std::os::raw::c_ulong;
 pub type size_t = __darwin_size_t;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct ImGuiContext {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct ImVec2 {
     pub x: f32,
     pub y: f32,
@@ -34,6 +39,11 @@ fn bindgen_test_layout_ImVec2() {
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct EditorContext {
+    _unused: [u8; 0],
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
+pub struct Context {
     _unused: [u8; 0],
 }
 pub const ColorStyle_ColorStyle_NodeBackground: ColorStyle = 0;
@@ -392,6 +402,21 @@ fn bindgen_test_layout_Style() {
     );
 }
 extern "C" {
+    pub fn imnodes_SetImGuiContext(ctx: *mut ImGuiContext);
+}
+extern "C" {
+    pub fn imnodes_CreateContext() -> *mut Context;
+}
+extern "C" {
+    pub fn imnodes_DestroyContext(ctx: *mut Context);
+}
+extern "C" {
+    pub fn imnodes_GetCurrentContext() -> *mut Context;
+}
+extern "C" {
+    pub fn imnodes_SetCurrentContext(ctx: *mut Context);
+}
+extern "C" {
     pub fn imnodes_EditorContextCreate() -> *mut EditorContext;
 }
 extern "C" {
@@ -408,12 +433,6 @@ extern "C" {
 }
 extern "C" {
     pub fn imnodes_EditorContextMoveToNode(node_id: ::std::os::raw::c_int);
-}
-extern "C" {
-    pub fn imnodes_Initialize();
-}
-extern "C" {
-    pub fn imnodes_Shutdown();
 }
 extern "C" {
     pub fn imnodes_GetIO() -> *mut IO;

@@ -35,15 +35,17 @@ impl Drop for EditorContext {
     }
 }
 
-/// imnodes_Initialize
-pub struct Context {}
+/// imnodes_CreateContext
+pub struct Context {
+    context: *mut sys::Context,
+}
 
 impl Context {
     /// create global context
     pub fn new() -> Self {
-        unsafe { sys::imnodes_Initialize() }
+        let context = unsafe { sys::imnodes_CreateContext() };
 
-        Self {}
+        Self { context }
     }
 
     /// created the context for one editor/ grid
@@ -56,6 +58,6 @@ impl Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
-        unsafe { sys::imnodes_Shutdown() }
+        unsafe { sys::imnodes_DestroyContext(self.context) }
     }
 }

@@ -31,8 +31,7 @@ fn main() -> io::Result<()> {
     // Taken from https://github.com/aloucks/imguizmo-rs/blob/master/imguizmo-sys/build.rs
     env::vars()
         .filter_map(|(key, val)| {
-            key.strip_prefix("DEP_IMGUI_DEFINE_")
-                .and_then(|suffix| Some((suffix.to_string(), val.to_string())))
+            key.strip_prefix("DEP_IMGUI_DEFINE_").map(|suffix| (suffix.to_string(), val.to_string()))
         })
         .for_each(|(key, value)| {
             build.define(&key, value.as_str());
