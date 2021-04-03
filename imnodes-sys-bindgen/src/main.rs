@@ -32,6 +32,8 @@ fn main() {
                 .to_str()
                 .expect("Could not turn cimnodes.h path into string"),
         )
+        // https://github.com/rust-lang/rust-bindgen/issues/1533
+        .clang_arg(format!("-I{}", cimgui_include_path.to_str().unwrap()))
         .parse_callbacks(Box::new(CargoCallbacks))
         .clang_arg("-DCIMGUI_DEFINE_ENUMS_AND_STRUCTS=1")
         .whitelist_function("imnodes_.*")

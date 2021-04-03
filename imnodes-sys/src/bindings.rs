@@ -97,14 +97,13 @@ pub type AttributeFlags = ::std::os::raw::c_uint;
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
 pub struct EmulateThreeButtonMouse {
-    pub enabled: bool,
     pub modifier: *const bool,
 }
 #[test]
 fn bindgen_test_layout_EmulateThreeButtonMouse() {
     assert_eq!(
         ::std::mem::size_of::<EmulateThreeButtonMouse>(),
-        16usize,
+        8usize,
         concat!("Size of: ", stringify!(EmulateThreeButtonMouse))
     );
     assert_eq!(
@@ -113,20 +112,10 @@ fn bindgen_test_layout_EmulateThreeButtonMouse() {
         concat!("Alignment of ", stringify!(EmulateThreeButtonMouse))
     );
     assert_eq!(
-        unsafe { &(*(::std::ptr::null::<EmulateThreeButtonMouse>())).enabled as *const _ as usize },
-        0usize,
-        concat!(
-            "Offset of field: ",
-            stringify!(EmulateThreeButtonMouse),
-            "::",
-            stringify!(enabled)
-        )
-    );
-    assert_eq!(
         unsafe {
             &(*(::std::ptr::null::<EmulateThreeButtonMouse>())).modifier as *const _ as usize
         },
-        8usize,
+        0usize,
         concat!(
             "Offset of field: ",
             stringify!(EmulateThreeButtonMouse),
@@ -170,6 +159,7 @@ fn bindgen_test_layout_LinkDetachWithModifierClick() {
 pub struct IO {
     pub emulate_three_button_mouse: EmulateThreeButtonMouse,
     pub link_detach_with_modifier_click: LinkDetachWithModifierClick,
+    pub alt_mouse_button: ::std::os::raw::c_int,
 }
 #[test]
 fn bindgen_test_layout_IO() {
@@ -197,12 +187,22 @@ fn bindgen_test_layout_IO() {
         unsafe {
             &(*(::std::ptr::null::<IO>())).link_detach_with_modifier_click as *const _ as usize
         },
-        16usize,
+        8usize,
         concat!(
             "Offset of field: ",
             stringify!(IO),
             "::",
             stringify!(link_detach_with_modifier_click)
+        )
+    );
+    assert_eq!(
+        unsafe { &(*(::std::ptr::null::<IO>())).alt_mouse_button as *const _ as usize },
+        16usize,
+        concat!(
+            "Offset of field: ",
+            stringify!(IO),
+            "::",
+            stringify!(alt_mouse_button)
         )
     );
 }
