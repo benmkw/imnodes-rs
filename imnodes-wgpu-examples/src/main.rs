@@ -171,7 +171,7 @@ fn main() {
                                     multi_editor::show(&ui, &mut second_editor_state_1);
                                 });
 
-                            ui.same_line(0.0);
+                            ui.same_line();
 
                             ChildWindow::new(im_str!("3"))
                                 .size([width, 0.0])
@@ -200,8 +200,8 @@ fn main() {
 
                 let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: None,
-                    color_attachments: &[wgpu::RenderPassColorAttachmentDescriptor {
-                        attachment: &frame.output.view,
+                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                        view: &frame.output.view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {

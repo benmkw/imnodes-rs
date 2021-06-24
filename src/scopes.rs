@@ -34,7 +34,7 @@ impl OuterScope {
         alias = "IsLinkHovered"
     )]
     pub fn is_hovered(&self, id: impl Hoverable) -> bool {
-        id.is_hovered(&self)
+        id.is_hovered(self)
     }
 
     /// Did the user start dragging a new link from a pin?
@@ -105,7 +105,7 @@ impl OuterScope {
         let mut created_from_snap: bool = true;
 
         let is_created = unsafe {
-            sys::imnodes_IsLinkCreatedIntPtr(
+            sys::imnodes_IsLinkCreated_IntPtr(
                 &mut started_at_node_id as _,
                 &mut started_at_attribute_id as _,
                 &mut ended_at_node_id as _,

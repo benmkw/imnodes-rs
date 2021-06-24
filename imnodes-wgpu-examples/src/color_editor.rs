@@ -1,4 +1,4 @@
-use imgui::{im_str, Slider, Ui};
+use imgui::{im_str, PopupModal, Slider, Ui};
 
 use imnodes::{
     editor, AttributeFlag, AttributeId, Context, EditorContext, IdentifierGenerator, InputPinId,
@@ -381,10 +381,10 @@ fn create_the_editor(
             ui.open_popup(popup_modal);
         }
 
-        ui.popup_modal(popup_modal)
+        PopupModal::new(im_str!("popUp"))
             .resizable(false)
             .title_bar(false)
-            .build(|| {
+            .build(ui, || {
                 let size = [100.0, 0.0];
 
                 let mut gen_node = || {
@@ -394,7 +394,7 @@ fn create_the_editor(
                     node
                 };
 
-                if ui.button(im_str!("Add"), size) {
+                if ui.button_with_size(im_str!("Add"), size) {
                     graph.nodes.push(Node {
                         id: gen_node(),
                         value: 0.0,
@@ -406,7 +406,7 @@ fn create_the_editor(
                     });
 
                     ui.close_current_popup();
-                } else if ui.button(im_str!("Multiply"), size) {
+                } else if ui.button_with_size(im_str!("Multiply"), size) {
                     graph.nodes.push(Node {
                         id: gen_node(),
                         value: 0.0,
@@ -417,7 +417,7 @@ fn create_the_editor(
                         updated: false,
                     });
                     ui.close_current_popup();
-                } else if ui.button(im_str!("Sine"), size) {
+                } else if ui.button_with_size(im_str!("Sine"), size) {
                     graph.nodes.push(Node {
                         id: gen_node(),
                         value: 0.0,
@@ -428,7 +428,7 @@ fn create_the_editor(
                         updated: false,
                     });
                     ui.close_current_popup();
-                } else if ui.button(im_str!("Time"), size) {
+                } else if ui.button_with_size(im_str!("Time"), size) {
                     graph.nodes.push(Node {
                         id: gen_node(),
                         value: 0.0,
@@ -439,7 +439,7 @@ fn create_the_editor(
                         updated: false,
                     });
                     ui.close_current_popup();
-                } else if ui.button(im_str!("Constant"), size) {
+                } else if ui.button_with_size(im_str!("Constant"), size) {
                     graph.nodes.push(Node {
                         id: gen_node(),
                         value: 0.0,
@@ -454,7 +454,7 @@ fn create_the_editor(
 
                 ui.separator();
 
-                if ui.button(im_str!("Close"), size) {
+                if ui.button_with_size(im_str!("Close"), size) {
                     ui.close_current_popup();
                 }
 
@@ -572,7 +572,7 @@ fn create_the_editor(
                             Slider::new(im_str!("value"))
                                 .range(0.0..=1.0)
                                 .display_format(&im_str!("{:.2}", curr_node.value))
-                                .build(&ui, &mut curr_node.value);
+                                .build(ui, &mut curr_node.value);
                         });
 
                         node.add_output(output, PinShape::CircleFilled, || {

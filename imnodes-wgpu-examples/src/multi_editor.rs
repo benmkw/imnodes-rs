@@ -62,7 +62,7 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
         ..
     } = state;
 
-    if ui.button(im_str!("Add a Node"), [0.0, 0.0]) {
+    if ui.button(im_str!("Add a Node")) {
         nodes.push(Node {
             id: id_gen.next_node(),
             input: id_gen.next_input_pin(),
@@ -72,7 +72,7 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
         });
     }
 
-    ui.same_line(0.0);
+    ui.same_line();
 
     ui.text(im_str!("or you can press \"A\" or right click"));
 
@@ -107,7 +107,7 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
                     Slider::new(im_str!("value"))
                         .range(0.0..=10.0)
                         .display_format(&im_str!("{:.2}", curr_node.value))
-                        .build(&ui, &mut curr_node.value);
+                        .build(ui, &mut curr_node.value);
                 });
 
                 node.add_output(curr_node.output, PinShape::CircleFilled, || {
@@ -137,5 +137,5 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
 
     on_snap.pop();
     detach.pop();
-    id.pop(&ui);
+    id.pop();
 }

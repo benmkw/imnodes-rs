@@ -22,3 +22,7 @@ members = [
     "imnodes-wgpu-examples",
     "imnodes-sys-bindgen",
 ]
+
+[patch.crates-io]
+imgui = { git = "https://github.com/imgui-rs/imgui-rs/", rev = "794ece895673a94fe480e1d81587108f34c8f586" }
+imgui-sys = { git = "https://github.com/imgui-rs/imgui-rs/", rev = "794ece895673a94fe480e1d81587108f34c8f586" }
