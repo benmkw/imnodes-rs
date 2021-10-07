@@ -18,13 +18,15 @@ impl EditorContext {
     /// Clears the list of selected nodes/links. Useful if you want to delete a selected node or link.
     #[doc(alias = "ClearNodeSelection")]
     pub fn clear_node_selection(&self) {
-        unsafe { sys::imnodes_ClearNodeSelection() };
+        // TODO add overload with int
+        unsafe { sys::imnodes_ClearNodeSelection_Nil() };
     }
 
     /// ClearLinkSelection
     #[doc(alias = "ClearLinkSelection")]
     pub fn clear_link_selection(&self) {
-        unsafe { sys::imnodes_ClearLinkSelection() };
+        // TODO add overload with int
+        unsafe { sys::imnodes_ClearLinkSelection_Nil() };
     }
 }
 

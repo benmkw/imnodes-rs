@@ -25,7 +25,7 @@ mod scopes;
 pub use scopes::*;
 
 // maybe wrap those (same decision as in implot-rs)
-pub use sys::{ImVec2, Style};
+pub use sys::{ImNodesStyle, ImVec2};
 
 /// used to generate unique identifers for elements
 pub struct IdentifierGenerator {

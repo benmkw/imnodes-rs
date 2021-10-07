@@ -6,7 +6,7 @@
 /// By default, the library creates an editor context behind the scenes, so using any of the imnodes
 /// functions doesn't require you to explicitly create a context.
 pub struct EditorContext {
-    raw: *mut imnodes_sys::EditorContext,
+    raw: *mut imnodes_sys::ImNodesEditorContext,
 }
 
 impl EditorContext {
@@ -26,8 +26,8 @@ impl EditorContext {
     /// TODO see Style_destroy, make sure this does not leak
     /// Returns the global style struct. See the struct declaration for default values.
     #[doc(alias = "GetStyle")]
-    pub fn get_style(&self) -> &mut imnodes_sys::Style {
-        unsafe { &mut *(imnodes_sys::imnodes_GetStyle() as *mut imnodes_sys::Style) }
+    pub fn get_style(&self) -> &mut imnodes_sys::ImNodesStyle {
+        unsafe { &mut *(imnodes_sys::imnodes_GetStyle() as *mut imnodes_sys::ImNodesStyle) }
     }
 }
 
@@ -43,7 +43,7 @@ impl Drop for EditorContext {
 /// imnodes_CreateContext
 #[doc(alias = "CreateContext")]
 pub struct Context {
-    context: *mut imnodes_sys::Context,
+    context: *mut imnodes_sys::ImNodesContext,
 }
 
 impl Context {

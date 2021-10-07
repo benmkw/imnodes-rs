@@ -17,7 +17,7 @@ mod multi_editor;
 fn main() {
     // Set up window and GPU
     let event_loop = EventLoop::new();
-    let instance = wgpu::Instance::new(wgpu::BackendBit::PRIMARY);
+    let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
 
     let (window, size, surface) = {
         let window = Window::new(&event_loop).unwrap();
@@ -43,15 +43,15 @@ fn main() {
         block_on(adapter.request_device(&wgpu::DeviceDescriptor::default(), None)).unwrap();
 
     // Set up swap chain
-    let mut sc_desc = wgpu::SwapChainDescriptor {
-        usage: wgpu::TextureUsage::RENDER_ATTACHMENT,
+    let mut surface_desc = wgpu::SurfaceConfiguration {
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
         format: wgpu::TextureFormat::Bgra8UnormSrgb,
         width: size.width,
         height: size.height,
         present_mode: wgpu::PresentMode::Fifo,
     };
 
-    let mut swap_chain = device.create_swap_chain(&surface, &sc_desc);
+    surface.configure(&device, &surface_desc);
 
     // Set up dear imgui
     let mut imgui = imgui::Context::create();
@@ -84,7 +84,7 @@ fn main() {
     // Set up dear imgui wgpu renderer
     //
     let renderer_config = RendererConfig {
-        texture_format: sc_desc.format,
+        texture_format: surface_desc.format,
         ..Default::default()
     };
 
@@ -113,9 +113,9 @@ fn main() {
                 ..
             } => {
                 // Recreate the swap chain with the new size
-                sc_desc.width = size.width;
-                sc_desc.height = size.height;
-                swap_chain = device.create_swap_chain(&surface, &sc_desc);
+                surface_desc.width = size.width;
+                surface_desc.height = size.height;
+                surface.configure(&device, &surface_desc);
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
@@ -127,7 +127,7 @@ fn main() {
                 imgui.io_mut().update_delta_time(now - last_frame);
                 last_frame = now;
 
-                let frame = match swap_chain.get_current_frame() {
+                let frame = match surface.get_current_frame() {
                     Ok(frame) => frame,
                     Err(e) => {
                         eprintln!("dropped frame: {:?}", e);
@@ -141,51 +141,43 @@ fn main() {
                 let ui = imgui.frame();
 
                 {
-                    let window = imgui::Window::new(im_str!("Hello imnodes"))
+                    let window = imgui::Window::new("Hello imnodes")
                         .resizable(false)
                         .position([0.0, 0.0], Condition::Always)
                         .size(
                             [
-                                sc_desc.width as f32 / hidpi_factor as f32,
-                                sc_desc.height as f32 / hidpi_factor as f32,
+                                surface_desc.width as f32 / hidpi_factor as f32,
+                                surface_desc.height as f32 / hidpi_factor as f32,
                             ],
                             Condition::Always,
                         );
 
                     window.build(&ui, || {
-                        ui.text(im_str!("Hello from imnodes-rs!"));
+                        ui.text("Hello from imnodes-rs!");
 
-                        if CollapsingHeader::new(im_str!("hello world")).build(&ui) {
-                            ChildWindow::new(im_str!("1"))
-                                .size([0.0, 0.0])
-                                .build(&ui, || {
-                                    hello_world::show(&ui, &mut first_editor);
-                                });
+                        if CollapsingHeader::new("hello world").build(&ui) {
+                            ChildWindow::new("1").size([0.0, 0.0]).build(&ui, || {
+                                hello_world::show(&ui, &mut first_editor);
+                            });
                         }
 
-                        if CollapsingHeader::new(im_str!("multi editor")).build(&ui) {
+                        if CollapsingHeader::new("multi editor").build(&ui) {
                             let width = ui.window_content_region_width() / 2_f32;
-                            ChildWindow::new(im_str!("2"))
-                                .size([width, 0.0])
-                                .build(&ui, || {
-                                    multi_editor::show(&ui, &mut second_editor_state_1);
-                                });
+                            ChildWindow::new("2").size([width, 0.0]).build(&ui, || {
+                                multi_editor::show(&ui, &mut second_editor_state_1);
+                            });
 
                             ui.same_line();
 
-                            ChildWindow::new(im_str!("3"))
-                                .size([width, 0.0])
-                                .build(&ui, || {
-                                    multi_editor::show(&ui, &mut second_editor_state_2);
-                                });
+                            ChildWindow::new("3").size([width, 0.0]).build(&ui, || {
+                                multi_editor::show(&ui, &mut second_editor_state_2);
+                            });
                         }
 
-                        if CollapsingHeader::new(im_str!("color editor")).build(&ui) {
-                            ChildWindow::new(im_str!("1"))
-                                .size([0.0, 0.0])
-                                .build(&ui, || {
-                                    color_editor::show(&ui, &mut color_editor);
-                                });
+                        if CollapsingHeader::new("color editor").build(&ui) {
+                            ChildWindow::new("1").size([0.0, 0.0]).build(&ui, || {
+                                color_editor::show(&ui, &mut color_editor);
+                            });
                         }
                     });
                 }
@@ -198,10 +190,15 @@ fn main() {
                     platform.prepare_render(&ui, &window);
                 }
 
+                let view = &frame
+                    .output
+                    .texture
+                    .create_view(&wgpu::TextureViewDescriptor::default());
+
                 let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: None,
                     color_attachments: &[wgpu::RenderPassColorAttachment {
-                        view: &frame.output.view,
+                        view,
                         resolve_target: None,
                         ops: wgpu::Operations {
                             load: wgpu::LoadOp::Clear(wgpu::Color {

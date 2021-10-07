@@ -48,6 +48,7 @@ fn main() -> io::Result<()> {
     let imgui_include_path = Path::new(&cimgui_include_path).join("imgui");
 
     build
+        .define("IMNODES_NAMESPACE", "imnodes")
         .include(&cimgui_include_path)
         .include(&imgui_include_path)
         .include("third-party/cimnodes/imnodes/")

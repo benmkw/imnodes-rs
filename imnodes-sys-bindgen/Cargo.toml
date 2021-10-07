@@ -5,5 +5,5 @@ authors = ["Benedikt Mandelkow"]
 edition = "2018"
 
 [dependencies]
-bindgen = "0.58"
-imgui-sys = { version = "0.7" }
+bindgen = "0.59.1"
+imgui-sys = "0.8.0"

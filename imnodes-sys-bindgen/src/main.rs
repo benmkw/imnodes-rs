@@ -37,18 +37,8 @@ fn main() {
         .parse_callbacks(Box::new(CargoCallbacks))
         .clang_arg("-DCIMGUI_DEFINE_ENUMS_AND_STRUCTS=1")
         .allowlist_function("imnodes_.*")
-        // from CIMGUI_DEFINE_ENUMS_AND_STRUCTS
-        .allowlist_type("EditorContext")
-        .allowlist_type("EmulateThreeButtonMouse")
-        .allowlist_type("IO")
-        .allowlist_type("EditorContext")
-        .allowlist_type("LinkDetachWithModifierClick")
-        .allowlist_type("Style")
-        .allowlist_type("AttributeFlags")
-        .allowlist_type("ColorStyle")
-        .allowlist_type("PinShape")
-        .allowlist_type("StyleFlags")
-        .allowlist_type("StyleVar")
+        .allowlist_function("ImNodes.*")
+        .allowlist_type("ImNodes.*")
         .generate()
         .expect("Unable to generate bindings");
 

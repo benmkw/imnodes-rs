@@ -1,4 +1,4 @@
-use imgui::{im_str, PopupModal, Slider, Ui};
+use imgui::{PopupModal, Slider, Ui};
 
 use imnodes::{
     editor, AttributeFlag, AttributeId, Context, EditorContext, IdentifierGenerator, InputPinId,
@@ -261,7 +261,7 @@ impl State {
 pub fn show(ui: &Ui, state: &mut State) {
     state.editor_context.set_style_colors_classic();
 
-    ui.text(im_str!("press \"A\" or right click to add a Node"));
+    ui.text("press \"A\" or right click to add a Node");
 
     // color setup
     let background = if let NodeType::Output(OutData {
@@ -373,7 +373,9 @@ fn create_the_editor(
     id_gen: &mut IdentifierGenerator,
 ) -> imnodes::OuterScope {
     editor(editor_context, |mut editor| {
-        let popup_modal = im_str!("popup_add_node");
+        editor.add_mini_map(imnodes::MiniMapLocation::BottomLeft);
+
+        let popup_modal = "popup_add_node";
 
         if editor.is_hovered()
             && (ui.is_mouse_clicked(imgui::MouseButton::Right) || ui.is_key_released(imgui::Key::A))
@@ -381,7 +383,7 @@ fn create_the_editor(
             ui.open_popup(popup_modal);
         }
 
-        PopupModal::new(im_str!("popUp"))
+        PopupModal::new("popup_add_node")
             .resizable(false)
             .title_bar(false)
             .build(ui, || {
@@ -394,7 +396,7 @@ fn create_the_editor(
                     node
                 };
 
-                if ui.button_with_size(im_str!("Add"), size) {
+                if ui.button_with_size("Add", size) {
                     graph.nodes.push(Node {
                         id: gen_node(),
                         value: 0.0,
@@ -406,7 +408,7 @@ fn create_the_editor(
                     });
 
                     ui.close_current_popup();
-                } else if ui.button_with_size(im_str!("Multiply"), size) {
+                } else if ui.button_with_size("Multiply", size) {
                     graph.nodes.push(Node {
                         id: gen_node(),
                         value: 0.0,
@@ -417,7 +419,7 @@ fn create_the_editor(
                         updated: false,
                     });
                     ui.close_current_popup();
-                } else if ui.button_with_size(im_str!("Sine"), size) {
+                } else if ui.button_with_size("Sine", size) {
                     graph.nodes.push(Node {
                         id: gen_node(),
                         value: 0.0,
@@ -428,7 +430,7 @@ fn create_the_editor(
                         updated: false,
                     });
                     ui.close_current_popup();
-                } else if ui.button_with_size(im_str!("Time"), size) {
+                } else if ui.button_with_size("Time", size) {
                     graph.nodes.push(Node {
                         id: gen_node(),
                         value: 0.0,
@@ -439,7 +441,7 @@ fn create_the_editor(
                         updated: false,
                     });
                     ui.close_current_popup();
-                } else if ui.button_with_size(im_str!("Constant"), size) {
+                } else if ui.button_with_size("Constant", size) {
                     graph.nodes.push(Node {
                         id: gen_node(),
                         value: 0.0,
@@ -454,7 +456,7 @@ fn create_the_editor(
 
                 ui.separator();
 
-                if ui.button_with_size(im_str!("Close"), size) {
+                if ui.button_with_size("Close", size) {
                     ui.close_current_popup();
                 }
 
@@ -466,34 +468,34 @@ fn create_the_editor(
                 NodeType::Add(AddData { input, output, .. }) => {
                     editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
-                            ui.text(im_str!("Add"));
+                            ui.text("Add");
                         });
 
                         node.add_input(input, PinShape::QuadFilled, || {
-                            ui.text(im_str!("input"));
+                            ui.text("input");
                         });
 
-                        ui.text(im_str!("Value: {:.2}", curr_node.value));
+                        ui.text(format!("Value: {:.2}", curr_node.value));
 
                         node.add_output(output, PinShape::CircleFilled, || {
-                            ui.text(im_str!("output"));
+                            ui.text("output");
                         });
                     });
                 }
                 NodeType::Multiply(MultData { input, output, .. }) => {
                     editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
-                            ui.text(im_str!("Multiply"));
+                            ui.text("Multiply");
                         });
 
-                        ui.text(im_str!("Value: {:.2}", curr_node.value));
+                        ui.text(format!("Value: {:.2}", curr_node.value));
 
                         node.add_input(input, PinShape::QuadFilled, || {
-                            ui.text(im_str!("input"));
+                            ui.text("input");
                         });
 
                         node.add_output(output, PinShape::CircleFilled, || {
-                            ui.text(im_str!("output"));
+                            ui.text("output");
                         });
                     });
                 }
@@ -508,54 +510,54 @@ fn create_the_editor(
                 }) => {
                     editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
-                            ui.text(im_str!("Output"));
+                            ui.text("Output");
                         });
 
                         node.add_input(input_red, PinShape::QuadFilled, || {
-                            ui.text(im_str!("red"));
+                            ui.text("red");
                         });
 
                         node.add_input(input_green, PinShape::QuadFilled, || {
-                            ui.text(im_str!("green"));
+                            ui.text("green");
                         });
 
                         node.add_input(input_blue, PinShape::QuadFilled, || {
-                            ui.text(im_str!("blue"));
+                            ui.text("blue");
                         });
 
-                        ui.text(im_str!("red: {:.2}", red));
-                        ui.text(im_str!("gree: {:.2}", green));
-                        ui.text(im_str!("blue: {:.2}", blue));
+                        ui.text(format!("red: {:.2}", red));
+                        ui.text(format!("gree: {:.2}", green));
+                        ui.text(format!("blue: {:.2}", blue));
                     });
                 }
                 NodeType::Sine(SineData { input, output, .. }) => {
                     editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
-                            ui.text(im_str!("Sine"));
+                            ui.text("Sine");
                         });
 
                         node.add_input(input, PinShape::QuadFilled, || {
-                            ui.text(im_str!("input"));
+                            ui.text("input");
                         });
 
                         // TODO add modal for things other than sine?
-                        ui.text(im_str!("Value: {:.2}", curr_node.value));
+                        ui.text(format!("Value: {:.2}", curr_node.value));
 
                         node.add_output(output, PinShape::CircleFilled, || {
-                            ui.text(im_str!("output"));
+                            ui.text("output");
                         });
                     });
                 }
                 NodeType::Time(TimeData { output, .. }) => {
                     editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
-                            ui.text(im_str!("Time"));
+                            ui.text("Time");
                         });
 
-                        ui.text(im_str!("Value: {:.2}", curr_node.value));
+                        ui.text(format!("Value: {:.2}", curr_node.value));
 
                         node.add_output(output, PinShape::CircleFilled, || {
-                            ui.text(im_str!("output"));
+                            ui.text("output");
                         });
                     });
                 }
@@ -564,19 +566,18 @@ fn create_the_editor(
                 }) => {
                     editor.add_node(curr_node.id, |mut node| {
                         node.add_titlebar(|| {
-                            ui.text(im_str!("Constant"));
+                            ui.text("Constant");
                         });
 
                         node.attribute(attribute, || {
                             ui.set_next_item_width(130.0);
-                            Slider::new(im_str!("value"))
-                                .range(0.0..=1.0)
-                                .display_format(&im_str!("{:.2}", curr_node.value))
+                            Slider::new("value", 0.0, 1.0)
+                                .display_format(format!("{:.2}", curr_node.value))
                                 .build(ui, &mut curr_node.value);
                         });
 
                         node.add_output(output, PinShape::CircleFilled, || {
-                            ui.text(im_str!("output"));
+                            ui.text("output");
                         });
                     });
                 }

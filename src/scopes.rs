@@ -7,8 +7,8 @@ This is why every method which takes a closure and calls it with a new scope tak
 */
 
 use crate::{
-    sys, AttributeId, EditorContext, Hoverable, InputPinId, Link, LinkId, NodeId, OutputPinId,
-    PinId, PinShape,
+    sys, AttributeId, EditorContext, Hoverable, InputPinId, Link, LinkId, MiniMapLocation, NodeId,
+    OutputPinId, PinId, PinShape,
 };
 
 /// entry point
@@ -219,6 +219,24 @@ impl OuterScope {
 #[derive(Debug)]
 pub struct EditorScope {}
 impl EditorScope {
+    /// MiniMap
+    #[doc(alias = "MiniMap", alias = "EndNode")]
+    pub fn add_mini_map(&self, location: MiniMapLocation) {
+        // TODO add all the sizing and placement and callback options
+        let minimap_size_fraction = 0.2;
+        let node_hovering_callback = None;
+        let node_hovering_callback_data = std::ptr::null::<std::ffi::c_void>();
+
+        unsafe {
+            sys::imnodes_MiniMap(
+                minimap_size_fraction,
+                location as i32,
+                node_hovering_callback,
+                node_hovering_callback_data as _,
+            )
+        }
+    }
+
     /// BeginNode
     /// ...
     /// EndNode
@@ -286,7 +304,7 @@ impl NodeScope {
     /// Create an input attribute block. The pin is rendered on left side.
     #[doc(alias = "BeginInputAttribute", alias = "EndInputAttribute")]
     pub fn add_input<F: FnOnce()>(&mut self, id: InputPinId, shape: PinShape, f: F) {
-        unsafe { sys::imnodes_BeginInputAttribute(id.into(), shape as u32) };
+        unsafe { sys::imnodes_BeginInputAttribute(id.into(), shape as i32) };
         f();
         unsafe { sys::imnodes_EndInputAttribute() };
     }
@@ -303,7 +321,7 @@ impl NodeScope {
     /// Create an output attribute block. The pin is rendered on the right side.
     #[doc(alias = "BeginOutputAttribute", alias = "EndOutputAttribute")]
     pub fn add_output<F: FnOnce()>(&mut self, id: OutputPinId, shape: PinShape, f: F) {
-        unsafe { sys::imnodes_BeginOutputAttribute(id.into(), shape as u32) };
+        unsafe { sys::imnodes_BeginOutputAttribute(id.into(), shape as i32) };
         f();
         unsafe { sys::imnodes_EndOutputAttribute() };
     }
