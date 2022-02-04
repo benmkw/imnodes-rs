@@ -2,8 +2,8 @@
 name = "imnodes-sys-bindgen"
 version = "0.1.0"
 authors = ["Benedikt Mandelkow"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-bindgen = "0.59.1"
-imgui-sys = "0.8.0"
+bindgen = "0.59.2"
+imgui-sys = "0.8.2"

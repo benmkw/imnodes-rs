@@ -2,14 +2,14 @@
 name = "imnodes-wgpu-examples"
 version = "0.1.0"
 authors = ["Benedikt Mandelkow <benedikt.mandelkow@rwth-aachen.de>", "imgui-wgpu contributors"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 imnodes = { path = "../" }
 
-wgpu = "0.11.0"
-winit = "0.25.0"
-futures = "0.3.17"
-imgui = "0.8.0"
-imgui-winit-support = "0.8.0"
-imgui-wgpu = "0.17.2"
+wgpu = "0.12.0"
+winit = "0.26.1"
+futures = "0.3.19"
+imgui = "0.8.2"
+imgui-winit-support = { version = "0.8.2", features = ["winit-26"] }
+imgui-wgpu = "0.19.0"

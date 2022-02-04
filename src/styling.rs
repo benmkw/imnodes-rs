@@ -107,8 +107,7 @@ pub enum MiniMapLocation {
 pub enum StyleVar {
     GridSpacing = sys::ImNodesStyleVar__ImNodesStyleVar_GridSpacing,
     NodeCornerRounding = sys::ImNodesStyleVar__ImNodesStyleVar_NodeCornerRounding,
-    NodePaddingHorizontal = sys::ImNodesStyleVar__ImNodesStyleVar_NodePaddingHorizontal,
-    NodePaddingVertical = sys::ImNodesStyleVar__ImNodesStyleVar_NodePaddingVertical,
+    NodePaddingHorizontal = sys::ImNodesStyleVar__ImNodesStyleVar_NodePadding,
     NodeBorderThickness = sys::ImNodesStyleVar__ImNodesStyleVar_NodeBorderThickness,
     LinkThickness = sys::ImNodesStyleVar__ImNodesStyleVar_LinkThickness,
     LinkLineSegmentsPerLength = sys::ImNodesStyleVar__ImNodesStyleVar_LinkLineSegmentsPerLength,
@@ -125,13 +124,17 @@ pub enum StyleVar {
     PinHoverRadius = sys::ImNodesStyleVar__ImNodesStyleVar_PinHoverRadius,
     /// Offsets the pins' positions from the edge of the node to the outside of the node.
     PinOffset = sys::ImNodesStyleVar__ImNodesStyleVar_PinOffset,
+    MiniMapPadding = sys::ImNodesStyleVar__ImNodesStyleVar_MiniMapPadding,
+    MiniMapOffset = sys::ImNodesStyleVar__ImNodesStyleVar_MiniMapOffset,
+    COUNT = sys::ImNodesStyleVar__ImNodesStyleVar_COUNT,
 }
 
 impl StyleVar {
     #[must_use = "need to call pop on StyleVarToken befor going out of scope"]
     #[doc(alias = "PushStyleVar")]
     pub fn push_val(self, value: f32, _: &EditorContext) -> StyleVarToken {
-        unsafe { sys::imnodes_PushStyleVar(self as i32, value) };
+        // TODO make PushStyleVar generic
+        unsafe { sys::imnodes_PushStyleVar_Float(self as i32, value) };
         StyleVarToken { ended: false }
     }
 }
@@ -141,10 +144,11 @@ pub struct StyleVarToken {
     ended: bool,
 }
 impl StyleVarToken {
+    /// count is defaulted 1 in imnodes
     #[doc(alias = "PopStyleVar")]
-    pub fn pop(mut self) {
+    pub fn pop(mut self, count: i32) {
         self.ended = true;
-        unsafe { sys::imnodes_PopStyleVar() };
+        unsafe { sys::imnodes_PopStyleVar(count as _) };
     }
 }
 
