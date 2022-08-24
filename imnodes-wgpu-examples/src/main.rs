@@ -25,7 +25,7 @@ fn main() {
             width: 1280.0,
             height: 720.0,
         });
-        window.set_title(&"imnodes-wgpu".to_string());
+        window.set_title("imnodes-wgpu");
         let size = window.inner_size();
 
         let surface = unsafe { instance.create_surface(&window) };
@@ -197,7 +197,7 @@ fn main() {
 
                 let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: None,
-                    color_attachments: &[wgpu::RenderPassColorAttachment {
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view,
                         resolve_target: None,
                         ops: wgpu::Operations {
@@ -209,7 +209,7 @@ fn main() {
                             }),
                             store: true,
                         },
-                    }],
+                    })],
                     depth_stencil_attachment: None,
                 });
 

@@ -173,7 +173,7 @@ fn update(graph: &mut Graph, curr_node_idx: usize, input_pin: Option<InputPinId>
             }
         }
         NodeType::Sine(_) => {
-            curr_node.value = if let Some(input) = predecessors.get(0) {
+            curr_node.value = if let Some(input) = predecessors.first() {
                 (nodes[*input].value * std::f32::consts::PI).sin()
             } else {
                 0.0
@@ -204,13 +204,13 @@ enum NodeType {
     Constant(ConstData),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct AddData {
     input: InputPinId,
     output: OutputPinId,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct MultData {
     input: InputPinId,
     output: OutputPinId,
@@ -224,17 +224,17 @@ struct OutData {
     green: f32,
     blue: f32,
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct SineData {
     input: InputPinId,
     output: OutputPinId,
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct TimeData {
     input: InputPinId,
     output: OutputPinId,
 }
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct ConstData {
     output: OutputPinId,
     attribute: AttributeId,

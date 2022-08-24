@@ -13,4 +13,4 @@ links = "imnodes"
 imgui-sys = "0.8.2"
 
 [build-dependencies]
-cc = "1.0.72"
+cc = "1.0.73"
