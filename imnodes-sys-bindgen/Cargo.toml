@@ -6,4 +6,4 @@ edition = "2021"
 
 [dependencies]
 bindgen = "0.60.1"
-imgui-sys = "0.8.2"
+imgui-sys = "0.10.0"
