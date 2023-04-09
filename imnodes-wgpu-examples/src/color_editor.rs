@@ -388,10 +388,10 @@ fn create_the_editor(
             ui.open_popup(popup_modal);
         }
 
-        PopupModal::new("popup_add_node")
+        PopupModal::new(ui, "popup_add_node")
             .resizable(false)
             .title_bar(false)
-            .build(ui, || {
+            .build(|| {
                 let size = [100.0, 0.0];
 
                 let mut gen_node = || {
@@ -576,9 +576,9 @@ fn create_the_editor(
 
                         node.attribute(attribute, || {
                             ui.set_next_item_width(130.0);
-                            Slider::new("value", 0.0, 1.0)
+                            Slider::new(ui, "value", 0.0, 1.0)
                                 .display_format(format!("{:.2}", curr_node.value))
-                                .build(ui, &mut curr_node.value);
+                                .build(&mut curr_node.value);
                         });
 
                         node.add_output(output, PinShape::CircleFilled, || {

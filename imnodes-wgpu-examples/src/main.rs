@@ -17,7 +17,7 @@ mod multi_editor;
 fn main() {
     // Set up window and GPU
     let event_loop = EventLoop::new();
-    let instance = wgpu::Instance::new(wgpu::Backends::PRIMARY);
+    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
 
     let (window, size, surface) = {
         let window = Window::new(&event_loop).unwrap();
@@ -28,7 +28,7 @@ fn main() {
         window.set_title("imnodes-wgpu");
         let size = window.inner_size();
 
-        let surface = unsafe { instance.create_surface(&window) };
+        let surface = unsafe { instance.create_surface(&window) }.unwrap();
 
         (window, size, surface)
     };
@@ -46,10 +46,13 @@ fn main() {
     // Set up swap chain
     let mut surface_desc = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+        // The view format Rgba8Unorm is not compatible with texture format Bgra8UnormSrgb, only changing srgb-ness is allowed
         format: wgpu::TextureFormat::Bgra8UnormSrgb,
         width: size.width,
         height: size.height,
         present_mode: wgpu::PresentMode::Fifo,
+        alpha_mode: wgpu::CompositeAlphaMode::Auto,
+        view_formats: vec![wgpu::TextureFormat::Bgra8Unorm],
     };
 
     surface.configure(&device, &surface_desc);
@@ -142,7 +145,8 @@ fn main() {
                 let ui = imgui.frame();
 
                 {
-                    let window = imgui::Window::new("Hello imnodes")
+                    let window = ui
+                        .window("Hello imnodes")
                         .resizable(false)
                         .position([0.0, 0.0], Condition::Always)
                         .size(
@@ -153,30 +157,30 @@ fn main() {
                             Condition::Always,
                         );
 
-                    window.build(&ui, || {
+                    window.build(|| {
                         ui.text("Hello from imnodes-rs!");
 
                         if CollapsingHeader::new("hello world").build(&ui) {
-                            ChildWindow::new("1").size([0.0, 0.0]).build(&ui, || {
+                            ui.child_window("1").size([0.0, 0.0]).build(|| {
                                 hello_world::show(&ui, &mut first_editor);
                             });
                         }
 
                         if CollapsingHeader::new("multi editor").build(&ui) {
                             let width = ui.window_content_region_width() / 2_f32;
-                            ChildWindow::new("2").size([width, 0.0]).build(&ui, || {
+                            ui.child_window("2").size([width, 0.0]).build(|| {
                                 multi_editor::show(&ui, &mut second_editor_state_1);
                             });
 
                             ui.same_line();
 
-                            ChildWindow::new("3").size([width, 0.0]).build(&ui, || {
+                            ui.child_window("3").size([width, 0.0]).build(|| {
                                 multi_editor::show(&ui, &mut second_editor_state_2);
                             });
                         }
 
                         if CollapsingHeader::new("color editor").build(&ui) {
-                            ChildWindow::new("1").size([0.0, 0.0]).build(&ui, || {
+                            ui.child_window("1").size([0.0, 0.0]).build(|| {
                                 color_editor::show(&ui, &mut color_editor);
                             });
                         }
@@ -214,7 +218,7 @@ fn main() {
                 });
 
                 renderer
-                    .render(ui.render(), &queue, &device, &mut rpass)
+                    .render(imgui.render(), &queue, &device, &mut rpass)
                     .expect("Rendering failed");
 
                 drop(rpass); // renders to screen on drop, will probaly be changed in wgpu 0.7 or later

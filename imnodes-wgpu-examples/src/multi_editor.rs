@@ -46,7 +46,9 @@ impl MultiEditState {
 pub fn show(ui: &Ui, state: &mut MultiEditState) {
     // just as an example, should not be needed anymore
     // see https://github.com/ocornut/imgui/blob/master/docs/FAQ.md#q-how-can-i-have-multiple-widgets-with-the-same-label
-    let id = ui.push_id(state as *mut MultiEditState);
+
+    // TODO HACK why was this needed? is it safe to remove this?
+    let id = ui.push_id(format!("{:?}", state as *mut MultiEditState));
 
     state
         .editor_context
@@ -109,9 +111,9 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
 
                 node.attribute(curr_node.attribute, || {
                     ui.set_next_item_width(130.0);
-                    Slider::new("value", 0.0, 10.0)
+                    Slider::new(ui, "value", 0.0, 10.0)
                         .display_format(format!("{:.2}", curr_node.value))
-                        .build(ui, &mut curr_node.value);
+                        .build(&mut curr_node.value);
                 });
 
                 node.add_output(curr_node.output, PinShape::CircleFilled, || {

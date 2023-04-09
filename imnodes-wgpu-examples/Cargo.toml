@@ -7,9 +7,9 @@ edition = "2021"
 [dependencies]
 imnodes = { path = "../" }
 
-wgpu = "0.13.1"
-winit = "0.26.1"
-futures = "0.3.21"
-imgui = "0.8.2"
-imgui-winit-support = { version = "0.8.2", features = ["winit-26"] }
-imgui-wgpu = "0.20.0"
+wgpu = "0.15.1"
+winit = "0.27.5"
+futures = "0.3.28"
+imgui = "0.10.0"
+imgui-winit-support = "0.10.0"
+imgui-wgpu = "0.22.0"
