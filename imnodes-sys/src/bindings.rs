@@ -82,19 +82,20 @@ pub const ImNodesCol__ImNodesCol_BoxSelector: ImNodesCol_ = 12;
 pub const ImNodesCol__ImNodesCol_BoxSelectorOutline: ImNodesCol_ = 13;
 pub const ImNodesCol__ImNodesCol_GridBackground: ImNodesCol_ = 14;
 pub const ImNodesCol__ImNodesCol_GridLine: ImNodesCol_ = 15;
-pub const ImNodesCol__ImNodesCol_MiniMapBackground: ImNodesCol_ = 16;
-pub const ImNodesCol__ImNodesCol_MiniMapBackgroundHovered: ImNodesCol_ = 17;
-pub const ImNodesCol__ImNodesCol_MiniMapOutline: ImNodesCol_ = 18;
-pub const ImNodesCol__ImNodesCol_MiniMapOutlineHovered: ImNodesCol_ = 19;
-pub const ImNodesCol__ImNodesCol_MiniMapNodeBackground: ImNodesCol_ = 20;
-pub const ImNodesCol__ImNodesCol_MiniMapNodeBackgroundHovered: ImNodesCol_ = 21;
-pub const ImNodesCol__ImNodesCol_MiniMapNodeBackgroundSelected: ImNodesCol_ = 22;
-pub const ImNodesCol__ImNodesCol_MiniMapNodeOutline: ImNodesCol_ = 23;
-pub const ImNodesCol__ImNodesCol_MiniMapLink: ImNodesCol_ = 24;
-pub const ImNodesCol__ImNodesCol_MiniMapLinkSelected: ImNodesCol_ = 25;
-pub const ImNodesCol__ImNodesCol_MiniMapCanvas: ImNodesCol_ = 26;
-pub const ImNodesCol__ImNodesCol_MiniMapCanvasOutline: ImNodesCol_ = 27;
-pub const ImNodesCol__ImNodesCol_COUNT: ImNodesCol_ = 28;
+pub const ImNodesCol__ImNodesCol_GridLinePrimary: ImNodesCol_ = 16;
+pub const ImNodesCol__ImNodesCol_MiniMapBackground: ImNodesCol_ = 17;
+pub const ImNodesCol__ImNodesCol_MiniMapBackgroundHovered: ImNodesCol_ = 18;
+pub const ImNodesCol__ImNodesCol_MiniMapOutline: ImNodesCol_ = 19;
+pub const ImNodesCol__ImNodesCol_MiniMapOutlineHovered: ImNodesCol_ = 20;
+pub const ImNodesCol__ImNodesCol_MiniMapNodeBackground: ImNodesCol_ = 21;
+pub const ImNodesCol__ImNodesCol_MiniMapNodeBackgroundHovered: ImNodesCol_ = 22;
+pub const ImNodesCol__ImNodesCol_MiniMapNodeBackgroundSelected: ImNodesCol_ = 23;
+pub const ImNodesCol__ImNodesCol_MiniMapNodeOutline: ImNodesCol_ = 24;
+pub const ImNodesCol__ImNodesCol_MiniMapLink: ImNodesCol_ = 25;
+pub const ImNodesCol__ImNodesCol_MiniMapLinkSelected: ImNodesCol_ = 26;
+pub const ImNodesCol__ImNodesCol_MiniMapCanvas: ImNodesCol_ = 27;
+pub const ImNodesCol__ImNodesCol_MiniMapCanvasOutline: ImNodesCol_ = 28;
+pub const ImNodesCol__ImNodesCol_COUNT: ImNodesCol_ = 29;
 pub type ImNodesCol_ = ::std::os::raw::c_uint;
 pub const ImNodesStyleVar__ImNodesStyleVar_GridSpacing: ImNodesStyleVar_ = 0;
 pub const ImNodesStyleVar__ImNodesStyleVar_NodeCornerRounding: ImNodesStyleVar_ = 1;
@@ -116,6 +117,8 @@ pub type ImNodesStyleVar_ = ::std::os::raw::c_uint;
 pub const ImNodesStyleFlags__ImNodesStyleFlags_None: ImNodesStyleFlags_ = 0;
 pub const ImNodesStyleFlags__ImNodesStyleFlags_NodeOutline: ImNodesStyleFlags_ = 1;
 pub const ImNodesStyleFlags__ImNodesStyleFlags_GridLines: ImNodesStyleFlags_ = 4;
+pub const ImNodesStyleFlags__ImNodesStyleFlags_GridLinesPrimary: ImNodesStyleFlags_ = 8;
+pub const ImNodesStyleFlags__ImNodesStyleFlags_GridSnapping: ImNodesStyleFlags_ = 16;
 pub type ImNodesStyleFlags_ = ::std::os::raw::c_uint;
 pub const ImNodesPinShape__ImNodesPinShape_Circle: ImNodesPinShape_ = 0;
 pub const ImNodesPinShape__ImNodesPinShape_CircleFilled: ImNodesPinShape_ = 1;
@@ -202,9 +205,45 @@ fn bindgen_test_layout_LinkDetachWithModifierClick() {
 }
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
+pub struct MultipleSelectModifier {
+    pub Modifier: *const bool,
+}
+#[test]
+fn bindgen_test_layout_MultipleSelectModifier() {
+    assert_eq!(
+        ::std::mem::size_of::<MultipleSelectModifier>(),
+        8usize,
+        concat!("Size of: ", stringify!(MultipleSelectModifier))
+    );
+    assert_eq!(
+        ::std::mem::align_of::<MultipleSelectModifier>(),
+        8usize,
+        concat!("Alignment of ", stringify!(MultipleSelectModifier))
+    );
+    fn test_field_Modifier() {
+        assert_eq!(
+            unsafe {
+                let uninit = ::std::mem::MaybeUninit::<MultipleSelectModifier>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).Modifier) as usize - ptr as usize
+            },
+            0usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(MultipleSelectModifier),
+                "::",
+                stringify!(Modifier)
+            )
+        );
+    }
+    test_field_Modifier();
+}
+#[repr(C)]
+#[derive(Debug, Copy, Clone)]
 pub struct ImNodesIO {
     pub EmulateThreeButtonMouse: EmulateThreeButtonMouse,
     pub LinkDetachWithModifierClick: LinkDetachWithModifierClick,
+    pub MultipleSelectModifier: MultipleSelectModifier,
     pub AltMouseButton: ::std::os::raw::c_int,
     pub AutoPanningSpeed: f32,
 }
@@ -212,7 +251,7 @@ pub struct ImNodesIO {
 fn bindgen_test_layout_ImNodesIO() {
     assert_eq!(
         ::std::mem::size_of::<ImNodesIO>(),
-        24usize,
+        32usize,
         concat!("Size of: ", stringify!(ImNodesIO))
     );
     assert_eq!(
@@ -254,6 +293,23 @@ fn bindgen_test_layout_ImNodesIO() {
         );
     }
     test_field_LinkDetachWithModifierClick();
+    fn test_field_MultipleSelectModifier() {
+        assert_eq!(
+            unsafe {
+                let uninit = ::std::mem::MaybeUninit::<ImNodesIO>::uninit();
+                let ptr = uninit.as_ptr();
+                ::std::ptr::addr_of!((*ptr).MultipleSelectModifier) as usize - ptr as usize
+            },
+            16usize,
+            concat!(
+                "Offset of field: ",
+                stringify!(ImNodesIO),
+                "::",
+                stringify!(MultipleSelectModifier)
+            )
+        );
+    }
+    test_field_MultipleSelectModifier();
     fn test_field_AltMouseButton() {
         assert_eq!(
             unsafe {
@@ -261,7 +317,7 @@ fn bindgen_test_layout_ImNodesIO() {
                 let ptr = uninit.as_ptr();
                 ::std::ptr::addr_of!((*ptr).AltMouseButton) as usize - ptr as usize
             },
-            16usize,
+            24usize,
             concat!(
                 "Offset of field: ",
                 stringify!(ImNodesIO),
@@ -278,7 +334,7 @@ fn bindgen_test_layout_ImNodesIO() {
                 let ptr = uninit.as_ptr();
                 ::std::ptr::addr_of!((*ptr).AutoPanningSpeed) as usize - ptr as usize
             },
-            20usize,
+            28usize,
             concat!(
                 "Offset of field: ",
                 stringify!(ImNodesIO),
@@ -308,13 +364,13 @@ pub struct ImNodesStyle {
     pub MiniMapPadding: ImVec2,
     pub MiniMapOffset: ImVec2,
     pub Flags: ImNodesStyleFlags,
-    pub Colors: [::std::os::raw::c_uint; 28usize],
+    pub Colors: [::std::os::raw::c_uint; 29usize],
 }
 #[test]
 fn bindgen_test_layout_ImNodesStyle() {
     assert_eq!(
         ::std::mem::size_of::<ImNodesStyle>(),
-        188usize,
+        192usize,
         concat!("Size of: ", stringify!(ImNodesStyle))
     );
     assert_eq!(
@@ -673,13 +729,13 @@ extern "C" {
     pub fn imnodes_GetStyle() -> *mut ImNodesStyle;
 }
 extern "C" {
-    pub fn imnodes_StyleColorsDark();
+    pub fn imnodes_StyleColorsDark(dest: *mut ImNodesStyle);
 }
 extern "C" {
-    pub fn imnodes_StyleColorsClassic();
+    pub fn imnodes_StyleColorsClassic(dest: *mut ImNodesStyle);
 }
 extern "C" {
-    pub fn imnodes_StyleColorsLight();
+    pub fn imnodes_StyleColorsLight(dest: *mut ImNodesStyle);
 }
 extern "C" {
     pub fn imnodes_BeginNodeEditor();
@@ -776,6 +832,9 @@ extern "C" {
 }
 extern "C" {
     pub fn imnodes_GetNodeGridSpacePos(pOut: *mut ImVec2, node_id: ::std::os::raw::c_int);
+}
+extern "C" {
+    pub fn imnodes_SnapNodeToGrid(node_id: ::std::os::raw::c_int);
 }
 extern "C" {
     pub fn imnodes_IsEditorHovered() -> bool;

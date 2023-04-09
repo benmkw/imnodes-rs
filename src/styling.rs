@@ -3,25 +3,57 @@
 use crate::{sys, EditorContext};
 use imgui::ImColor32;
 
+/// TODO wrap this to not expose the sys version
+/// impl Default for that struct to replace create_imnodes_style()
+pub use sys::ImNodesStyle;
+
+/// from https://github.com/Nelarius/imnodes/blob/d88f99125bb72cdb71b4c27ff6eb7f318d89a4c5/imnodes.cpp#L1994-L2000
+pub fn create_imnodes_style() -> ImNodesStyle {
+    ImNodesStyle {
+        GridSpacing: 24.0,
+        NodeCornerRounding: 4.0,
+        NodePadding: sys::ImVec2 { x: 8.0, y: 8.0 },
+        NodeBorderThickness: 1.0,
+
+        LinkThickness: 3.0,
+        LinkLineSegmentsPerLength: 0.1,
+        LinkHoverDistance: 10.0,
+
+        PinCircleRadius: 4.0,
+        PinQuadSideLength: 7.0,
+        PinTriangleSideLength: 9.5,
+
+        PinLineThickness: 1.0,
+        PinHoverRadius: 10.0,
+        PinOffset: 0.0,
+        MiniMapPadding: sys::ImVec2 { x: 8.0, y: 8.0 },
+
+        MiniMapOffset: sys::ImVec2 { x: 4.0, y: 4.0 },
+
+        Flags: StyleFlag::GridLines as i32 | StyleFlag::NodeOutline as i32,
+        Colors: Default::default(), // TODO does this match the cpp code? could not find any other initializer
+    }
+}
+
 impl EditorContext {
     /// dark color theme
     #[doc(alias = "StyleColorsDark")]
-    pub fn set_style_colors_dark(&self) -> &Self {
-        unsafe { sys::imnodes_StyleColorsDark() };
+    pub fn set_style_colors_dark(&self, style: &mut ImNodesStyle) -> &Self {
+        unsafe { sys::imnodes_StyleColorsDark(style) };
         self
     }
 
     /// classic color theme
     #[doc(alias = "StyleColorsClassic")]
-    pub fn set_style_colors_classic(&self) -> &Self {
-        unsafe { sys::imnodes_StyleColorsClassic() };
+    pub fn set_style_colors_classic(&self, style: &mut ImNodesStyle) -> &Self {
+        unsafe { sys::imnodes_StyleColorsClassic(style) };
         self
     }
 
     /// light color theme
     #[doc(alias = "StyleColorsLight")]
-    pub fn set_style_colors_light(&self) -> &Self {
-        unsafe { sys::imnodes_StyleColorsLight() };
+    pub fn set_style_colors_light(&self, style: &mut ImNodesStyle) -> &Self {
+        unsafe { sys::imnodes_StyleColorsLight(style) };
         self
     }
 }

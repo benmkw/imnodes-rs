@@ -10,6 +10,8 @@ pub struct MultiEditState {
 
     nodes: Vec<Node>,
     links: Vec<Link>,
+
+    style: imnodes::ImNodesStyle,
 }
 
 struct Link {
@@ -35,6 +37,7 @@ impl MultiEditState {
             editor_context,
             nodes: vec![],
             links: vec![],
+            style: imnodes::create_imnodes_style(),
         }
     }
 }
@@ -45,7 +48,9 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
     // see https://github.com/ocornut/imgui/blob/master/docs/FAQ.md#q-how-can-i-have-multiple-widgets-with-the-same-label
     let id = ui.push_id(state as *mut MultiEditState);
 
-    state.editor_context.set_style_colors_classic();
+    state
+        .editor_context
+        .set_style_colors_classic(&mut state.style);
 
     let on_snap = state
         .editor_context

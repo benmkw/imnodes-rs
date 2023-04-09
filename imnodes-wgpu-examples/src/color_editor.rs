@@ -10,6 +10,8 @@ pub struct State {
     id_gen: IdentifierGenerator,
 
     graph: Graph,
+
+    style: imnodes::ImNodesStyle,
 }
 
 #[derive(Debug, Clone)]
@@ -250,6 +252,7 @@ impl State {
             id_gen,
             editor_context,
             graph: nodes,
+            style: imnodes::create_imnodes_style(),
         }
     }
 }
@@ -259,7 +262,9 @@ impl State {
 /// TODO
 /// - add more mouse keyboard modifiers/ more vibrant colors
 pub fn show(ui: &Ui, state: &mut State) {
-    state.editor_context.set_style_colors_classic();
+    state
+        .editor_context
+        .set_style_colors_classic(&mut state.style);
 
     ui.text("press \"A\" or right click to add a Node");
 
