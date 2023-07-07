@@ -1,6 +1,6 @@
 [package]
 name = "imnodes"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Benedikt Mandelkow", "imnodes-rs contributors"]
 description = "Rust bindings to https://github.com/Nelarius/imnodes"
@@ -9,7 +9,7 @@ categories = ["gui", "api-bindings"]
 readme = "README.md"
 
 [dependencies]
-imnodes-sys = { version = "0.1.0", path = "imnodes-sys" }
+imnodes-sys = { version = "0.2.0", path = "imnodes-sys" }
 imgui = "0.11.0"
 
 [features]
@@ -17,8 +17,4 @@ imgui = "0.11.0"
 include_low_level_bindings = []
 
 [workspace]
-members = [
-    "imnodes-sys",
-    "imnodes-wgpu-examples",
-    "imnodes-sys-bindgen",
-]
+members = ["imnodes-sys", "imnodes-wgpu-examples", "imnodes-sys-bindgen"]

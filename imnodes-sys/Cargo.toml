@@ -1,6 +1,6 @@
 [package]
 name = "imnodes-sys"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Benedikt Mandelkow", "imnodes-rs contributors"]
 description = "Raw FFI bindings to imnodes"
@@ -13,4 +13,4 @@ links = "imnodes"
 imgui-sys = "0.11.0"
 
 [build-dependencies]
-cc = "1.0.79"
+cc = "1.0.83"
