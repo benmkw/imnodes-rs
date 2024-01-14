@@ -1,6 +1,6 @@
 [package]
 name = "imnodes"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 authors = ["Benedikt Mandelkow", "imnodes-rs contributors"]
 description = "Rust bindings to https://github.com/Nelarius/imnodes"

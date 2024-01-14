@@ -1,14 +1,3 @@
-use futures::executor::block_on;
-use imgui::*;
-use imgui_wgpu::{Renderer, RendererConfig};
-use std::time::Instant;
-use winit::{
-    dpi::LogicalSize,
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-    window::Window,
-};
-
 // the actual imnodes samples are in there
 mod color_editor;
 mod hello_world;
@@ -16,12 +5,12 @@ mod multi_editor;
 
 fn main() {
     // Set up window and GPU
-    let event_loop = EventLoop::new();
+    let event_loop = winit::event_loop::EventLoop::new();
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
 
     let (window, size, surface) = {
-        let window = Window::new(&event_loop).unwrap();
-        window.set_inner_size(LogicalSize {
+        let window = winit::window::Window::new(&event_loop).unwrap();
+        window.set_inner_size(winit::dpi::LogicalSize {
             width: 1280.0,
             height: 720.0,
         });
@@ -33,15 +22,18 @@ fn main() {
         (window, size, surface)
     };
 
-    let adapter = block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-        power_preference: wgpu::PowerPreference::HighPerformance,
-        compatible_surface: Some(&surface),
-        ..Default::default()
-    }))
-    .unwrap();
+    let adapter =
+        futures::executor::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
+            power_preference: wgpu::PowerPreference::HighPerformance,
+            compatible_surface: Some(&surface),
+            ..Default::default()
+        }))
+        .unwrap();
 
-    let (device, queue) =
-        block_on(adapter.request_device(&wgpu::DeviceDescriptor::default(), None)).unwrap();
+    let (device, queue) = futures::executor::block_on(
+        adapter.request_device(&wgpu::DeviceDescriptor::default(), None),
+    )
+    .unwrap();
 
     // Set up swap chain
     let mut surface_desc = wgpu::SurfaceConfiguration {
@@ -75,26 +67,28 @@ fn main() {
     let font_size = (13.0 * hidpi_factor) as f32;
     imgui.io_mut().font_global_scale = (1.0 / hidpi_factor) as f32;
 
-    imgui.fonts().add_font(&[FontSource::DefaultFontData {
-        config: Some(imgui::FontConfig {
-            oversample_h: 1,
-            pixel_snap_h: true,
-            size_pixels: font_size,
-            ..Default::default()
-        }),
-    }]);
+    imgui
+        .fonts()
+        .add_font(&[imgui::FontSource::DefaultFontData {
+            config: Some(imgui::FontConfig {
+                oversample_h: 1,
+                pixel_snap_h: true,
+                size_pixels: font_size,
+                ..Default::default()
+            }),
+        }]);
 
     //
     // Set up dear imgui wgpu renderer
     //
-    let renderer_config = RendererConfig {
+    let renderer_config = imgui_wgpu::RendererConfig {
         texture_format: surface_desc.format,
         ..Default::default()
     };
 
-    let mut renderer = Renderer::new(&mut imgui, &device, &queue, renderer_config);
+    let mut renderer = imgui_wgpu::Renderer::new(&mut imgui, &device, &queue, renderer_config);
 
-    let mut last_frame = Instant::now();
+    let mut last_frame = std::time::Instant::now();
     let mut last_cursor = None;
 
     let mut first_editor = imnodes_ui.create_editor();
@@ -103,7 +97,9 @@ fn main() {
     let mut color_editor = color_editor::State::new(&imnodes_ui);
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
+        *control_flow = winit::event_loop::ControlFlow::Poll;
+
+        use winit::event::{Event, WindowEvent};
 
         match event {
             Event::WindowEvent {
@@ -124,10 +120,10 @@ fn main() {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => *control_flow = ControlFlow::Exit,
+            } => *control_flow = winit::event_loop::ControlFlow::Exit,
             Event::MainEventsCleared => window.request_redraw(),
             Event::RedrawEventsCleared => {
-                let now = Instant::now();
+                let now = std::time::Instant::now();
                 imgui.io_mut().update_delta_time(now - last_frame);
                 last_frame = now;
 
@@ -148,40 +144,42 @@ fn main() {
                     let window = ui
                         .window("Hello imnodes")
                         .resizable(false)
-                        .position([0.0, 0.0], Condition::Always)
+                        .position([0.0, 0.0], imgui::Condition::Always)
                         .size(
                             [
                                 surface_desc.width as f32 / hidpi_factor as f32,
                                 surface_desc.height as f32 / hidpi_factor as f32,
                             ],
-                            Condition::Always,
+                            imgui::Condition::Always,
                         );
 
                     window.build(|| {
                         ui.text("Hello from imnodes-rs!");
 
-                        if CollapsingHeader::new("hello world").build(&ui) {
+                        if imgui::CollapsingHeader::new("hello world").build(ui) {
                             ui.child_window("1").size([0.0, 0.0]).build(|| {
-                                hello_world::show(&ui, &mut first_editor);
+                                hello_world::show(ui, &mut first_editor);
                             });
                         }
 
-                        if CollapsingHeader::new("multi editor").build(&ui) {
-                            let width = ui.window_content_region_width() / 2_f32;
+                        if imgui::CollapsingHeader::new("multi editor").build(ui) {
+                            let width = (ui.window_content_region_max()[0]
+                                - ui.window_content_region_min()[0])
+                                / 2_f32;
                             ui.child_window("2").size([width, 0.0]).build(|| {
-                                multi_editor::show(&ui, &mut second_editor_state_1);
+                                multi_editor::show(ui, &mut second_editor_state_1);
                             });
 
                             ui.same_line();
 
                             ui.child_window("3").size([width, 0.0]).build(|| {
-                                multi_editor::show(&ui, &mut second_editor_state_2);
+                                multi_editor::show(ui, &mut second_editor_state_2);
                             });
                         }
 
-                        if CollapsingHeader::new("color editor").build(&ui) {
+                        if imgui::CollapsingHeader::new("color editor").build(ui) {
                             ui.child_window("1").size([0.0, 0.0]).build(|| {
-                                color_editor::show(&ui, &mut color_editor);
+                                color_editor::show(ui, &mut color_editor);
                             });
                         }
                     });
@@ -192,7 +190,7 @@ fn main() {
 
                 if last_cursor != Some(ui.mouse_cursor()) {
                     last_cursor = Some(ui.mouse_cursor());
-                    platform.prepare_render(&ui, &window);
+                    platform.prepare_render(ui, &window);
                 }
 
                 let view = &frame

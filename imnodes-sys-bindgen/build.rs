@@ -1,10 +1,8 @@
-use std::env;
-
 fn main() {
     // We just forward the DEP_IMGUI_THIRD_PARTY variable here because the
     // main function outside the build script does not actually see it
     let cimgui_include_path =
-        env::var_os("DEP_IMGUI_THIRD_PARTY").expect("DEP_IMGUI_THIRD_PARTY not defined");
+        std::env::var_os("DEP_IMGUI_THIRD_PARTY").expect("DEP_IMGUI_THIRD_PARTY not defined");
     println!(
         "cargo:rustc-env=DEP_IMGUI_THIRD_PARTY={}",
         cimgui_include_path

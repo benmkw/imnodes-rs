@@ -26,8 +26,8 @@ impl EditorContext {
     /// TODO see Style_destroy, make sure this does not leak
     /// Returns the global style struct. See the struct declaration for default values.
     #[doc(alias = "GetStyle")]
-    pub fn get_style(&self) -> &mut imnodes_sys::ImNodesStyle {
-        unsafe { &mut *(imnodes_sys::imnodes_GetStyle() as *mut imnodes_sys::ImNodesStyle) }
+    pub fn get_style(&mut self) -> &mut imnodes_sys::ImNodesStyle {
+        unsafe { &mut *imnodes_sys::imnodes_GetStyle() }
     }
 }
 
@@ -44,6 +44,12 @@ impl Drop for EditorContext {
 #[doc(alias = "CreateContext")]
 pub struct Context {
     context: *mut imnodes_sys::ImNodesContext,
+}
+
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Context {

@@ -91,9 +91,9 @@ pub struct AttributeId {
     id: i32,
 }
 
-impl Into<i32> for AttributeId {
-    fn into(self) -> i32 {
-        self.id
+impl From<AttributeId> for i32 {
+    fn from(val: AttributeId) -> Self {
+        val.id
     }
 }
 
@@ -193,9 +193,9 @@ impl NodeId {
     }
 }
 
-impl Into<i32> for NodeId {
-    fn into(self) -> i32 {
-        self.id
+impl From<NodeId> for i32 {
+    fn from(val: NodeId) -> Self {
+        val.id
     }
 }
 
@@ -236,15 +236,15 @@ pub struct InputPinId {
     id: i32,
 }
 
-impl Into<i32> for InputPinId {
-    fn into(self) -> i32 {
-        self.id
+impl From<InputPinId> for i32 {
+    fn from(val: InputPinId) -> Self {
+        val.id
     }
 }
 
-impl Into<PinId> for InputPinId {
-    fn into(self) -> PinId {
-        PinId { id: self.id }
+impl From<InputPinId> for PinId {
+    fn from(val: InputPinId) -> Self {
+        PinId { id: val.id }
     }
 }
 
@@ -254,15 +254,15 @@ pub struct OutputPinId {
     id: i32,
 }
 
-impl Into<i32> for OutputPinId {
-    fn into(self) -> i32 {
-        self.id
+impl From<OutputPinId> for i32 {
+    fn from(val: OutputPinId) -> Self {
+        val.id
     }
 }
 
-impl Into<PinId> for OutputPinId {
-    fn into(self) -> PinId {
-        PinId { id: self.id }
+impl From<OutputPinId> for PinId {
+    fn from(val: OutputPinId) -> Self {
+        PinId { id: val.id }
     }
 }
 
@@ -280,9 +280,9 @@ impl LinkId {
     }
 }
 
-impl Into<i32> for LinkId {
-    fn into(self) -> i32 {
-        self.id
+impl From<LinkId> for i32 {
+    fn from(val: LinkId) -> Self {
+        val.id
     }
 }
 

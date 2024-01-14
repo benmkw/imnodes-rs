@@ -1,5 +1,3 @@
-use imgui::{PopupModal, Slider, Ui};
-
 use imnodes::{
     editor, AttributeFlag, AttributeId, Context, EditorContext, IdentifierGenerator, InputPinId,
     LinkId, NodeId, OutputPinId, PinShape,
@@ -123,7 +121,7 @@ fn update(graph: &mut Graph, curr_node_idx: usize, input_pin: Option<InputPinId>
                 }
             };
 
-            match links.iter().any(|link| is_connected(link)) {
+            match links.iter().any(is_connected) {
                 true => Some(i),
                 false => None,
             }
@@ -261,7 +259,7 @@ impl State {
 ///
 /// TODO
 /// - add more mouse keyboard modifiers/ more vibrant colors
-pub fn show(ui: &Ui, state: &mut State) {
+pub fn show(ui: &imgui::Ui, state: &mut State) {
     state
         .editor_context
         .set_style_colors_classic(&mut state.style);
@@ -293,13 +291,10 @@ pub fn show(ui: &Ui, state: &mut State) {
 
     let link_color = imnodes::ColorStyle::Link.push_color([0.8, 0.5, 0.1], &state.editor_context);
 
+    let width = ui.window_content_region_max()[0] - ui.window_content_region_min()[0];
     state.graph.nodes[0]
         .id
-        .set_position(
-            0.9 * ui.window_content_region_width(),
-            300.0,
-            imnodes::CoordinateSystem::ScreenSpace,
-        )
+        .set_position(0.9 * width, 300.0, imnodes::CoordinateSystem::ScreenSpace)
         .set_draggable(false);
 
     // node and link behaviour setup
@@ -372,7 +367,7 @@ pub fn show(ui: &Ui, state: &mut State) {
 
 /// main node ui
 fn create_the_editor(
-    ui: &Ui,
+    ui: &imgui::Ui,
     editor_context: &mut EditorContext,
     graph: &mut Graph,
     id_gen: &mut IdentifierGenerator,
@@ -388,7 +383,7 @@ fn create_the_editor(
             ui.open_popup(popup_modal);
         }
 
-        PopupModal::new(ui, "popup_add_node")
+        ui.modal_popup_config("popup_add_node")
             .resizable(false)
             .title_bar(false)
             .build(|| {
@@ -576,7 +571,7 @@ fn create_the_editor(
 
                         node.attribute(attribute, || {
                             ui.set_next_item_width(130.0);
-                            Slider::new(ui, "value", 0.0, 1.0)
+                            ui.slider_config("value", 0.0, 1.0)
                                 .display_format(format!("{:.2}", curr_node.value))
                                 .build(&mut curr_node.value);
                         });

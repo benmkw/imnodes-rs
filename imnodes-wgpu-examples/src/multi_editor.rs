@@ -1,4 +1,3 @@
-use imgui::{Slider, Ui};
 use imnodes::{
     editor, AttributeFlag, AttributeId, Context, EditorContext, IdentifierGenerator, InputPinId,
     LinkId, NodeId, OutputPinId, PinShape,
@@ -43,7 +42,7 @@ impl MultiEditState {
 }
 
 /// https://github.com/Nelarius/imnodes/blob/master/example/multi_editor.cpp
-pub fn show(ui: &Ui, state: &mut MultiEditState) {
+pub fn show(ui: &imgui::Ui, state: &mut MultiEditState) {
     // just as an example, should not be needed anymore
     // see https://github.com/ocornut/imgui/blob/master/docs/FAQ.md#q-how-can-i-have-multiple-widgets-with-the-same-label
 
@@ -111,7 +110,7 @@ pub fn show(ui: &Ui, state: &mut MultiEditState) {
 
                 node.attribute(curr_node.attribute, || {
                     ui.set_next_item_width(130.0);
-                    Slider::new(ui, "value", 0.0, 10.0)
+                    ui.slider_config("value", 0.0, 10.0)
                         .display_format(format!("{:.2}", curr_node.value))
                         .build(&mut curr_node.value);
                 });

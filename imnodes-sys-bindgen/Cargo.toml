@@ -1,6 +1,6 @@
 [package]
 name = "imnodes-sys-bindgen"
-version = "0.1.0"
+version = "0.2.1"
 authors = ["Benedikt Mandelkow"]
 edition = "2021"
 
