@@ -1,6 +1,6 @@
 [package]
 name = "imnodes"
-version = "0.2.2"
+version = "0.3.0"
 edition = "2021"
 authors = ["Benedikt Mandelkow", "imnodes-rs contributors"]
 description = "Rust bindings to https://github.com/Nelarius/imnodes"
@@ -9,8 +9,8 @@ categories = ["gui", "api-bindings"]
 readme = "README.md"
 
 [dependencies]
-imnodes-sys = { version = "0.2.2", path = "imnodes-sys" }
-imgui = "0.11.0"
+imnodes-sys = { version = "0.3.0", path = "imnodes-sys" }
+imgui = "0.12"
 
 [features]
 # export all low level functions

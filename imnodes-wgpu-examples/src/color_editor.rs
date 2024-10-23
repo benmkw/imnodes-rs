@@ -138,7 +138,7 @@ fn update(graph: &mut Graph, curr_node_idx: usize, input_pin: Option<InputPinId>
     // TODO do is this the best way to do this?
     let nodes = &mut graph.nodes;
     // SAFETY because we have no cycles, `curr_node` is never accessed through `nodes`
-    let curr_node = unsafe { &mut *((&mut nodes[curr_node_idx]) as *mut Node) };
+    let curr_node = unsafe { &mut *core::ptr::from_mut::<Node>(&mut nodes[curr_node_idx]) };
 
     match curr_node.typ {
         NodeType::Add(_) => {
@@ -174,7 +174,7 @@ fn update(graph: &mut Graph, curr_node_idx: usize, input_pin: Option<InputPinId>
         }
         NodeType::Sine(_) => {
             curr_node.value = if let Some(input) = predecessors.first() {
-                (nodes[*input].value * std::f32::consts::PI).sin()
+                (nodes[*input].value * core::f32::consts::PI).sin()
             } else {
                 0.0
             }
@@ -292,7 +292,7 @@ pub fn show(ui: &imgui::Ui, state: &mut State) {
     let link_color = imnodes::ColorStyle::Link.push_color([0.8, 0.5, 0.1], &state.editor_context);
 
     let width = ui.window_content_region_max()[0] - ui.window_content_region_min()[0];
-    state.graph.nodes[0]
+    let _ = state.graph.nodes[0]
         .id
         .set_position(0.9 * width, 300.0, imnodes::CoordinateSystem::ScreenSpace)
         .set_draggable(false);
@@ -343,7 +343,7 @@ pub fn show(ui: &imgui::Ui, state: &mut State) {
             id: state.id_gen.next_link(),
             start: link.start_pin,
             end: link.end_pin,
-        })
+        });
     }
 
     if let Some(link) = outer_scope.get_dropped_link() {
@@ -392,7 +392,7 @@ fn create_the_editor(
                 let mut gen_node = || {
                     let node = id_gen.next_node();
                     let [x, y] = ui.mouse_pos_on_opening_current_popup();
-                    node.set_position(x, y, imnodes::CoordinateSystem::ScreenSpace);
+                    let _ = node.set_position(x, y, imnodes::CoordinateSystem::ScreenSpace);
                     node
                 };
 
@@ -463,7 +463,7 @@ fn create_the_editor(
                 ui.separator();
             });
 
-        for curr_node in graph.nodes.iter_mut() {
+        for curr_node in &mut graph.nodes {
             match curr_node.typ {
                 NodeType::Add(AddData { input, output, .. }) => {
                     editor.add_node(curr_node.id, |mut node| {

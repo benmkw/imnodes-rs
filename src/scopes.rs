@@ -14,7 +14,7 @@ use crate::{
 /// entry point
 #[doc(alias = "BeginNodeEditor", alias = "EndNodeEditor")]
 pub fn editor<F: FnOnce(EditorScope)>(context: &mut EditorContext, f: F) -> OuterScope {
-    context.set_as_current_editor();
+    let _ = context.set_as_current_editor();
 
     unsafe { sys::imnodes_BeginNodeEditor() };
     f(EditorScope {});
@@ -23,7 +23,7 @@ pub fn editor<F: FnOnce(EditorScope)>(context: &mut EditorContext, f: F) -> Oute
 }
 
 /// Original Scopes turned into compile time checks:
-/// Scope_None = 1,
+/// `Scope_None` = 1,
 #[derive(Debug)]
 pub struct OuterScope {}
 impl OuterScope {
@@ -49,7 +49,7 @@ impl OuterScope {
     /// 1) a link which is created at a pin and then dropped
     /// 2) an existing link which is detached from a pin and then dropped
     ///
-    /// Use the including_detached_links flag to control whether this function triggers when the user
+    /// Use the `including_detached_links` flag to control whether this function triggers when the user
     /// detaches a link and drops it.
     #[doc(alias = "IsLinkDropped")]
     pub fn link_dropped_from<T: Into<PinId>>(&self, id: T, including_detached_links: bool) -> bool {
@@ -59,8 +59,9 @@ impl OuterScope {
 
     /// Query the number of selected nodes in the current editor.
     ///
-    /// selected_nodes builds on top of this
+    /// `selected_nodes` builds on top of this
     #[doc(alias = "NumSelectedNodes")]
+    #[must_use]
     pub fn num_selected_nodes(&self) -> u32 {
         let num = unsafe { sys::imnodes_NumSelectedNodes() };
         assert!(num > 0);
@@ -69,8 +70,9 @@ impl OuterScope {
 
     /// Query the number of selected links in the current editor.
     ///
-    /// selected_links builds on top of this
+    /// `selected_links` builds on top of this
     #[doc(alias = "NumSelectedLinks")]
+    #[must_use]
     pub fn num_selected_links(&self) -> u32 {
         let num = unsafe { sys::imnodes_NumSelectedLinks() };
         assert!(num > 0);
@@ -79,24 +81,31 @@ impl OuterScope {
 
     /// Get the selected node ids.
     #[doc(alias = "GetSelectedNodes")]
+    #[must_use]
     pub fn selected_nodes(&self) -> Vec<NodeId> {
         let nr_nodes = self.num_selected_nodes() as usize;
         let mut nodes = vec![NodeId { id: 0 }; nr_nodes];
-        unsafe { sys::imnodes_GetSelectedNodes(nodes.as_mut_ptr() as _) };
+        unsafe {
+            sys::imnodes_GetSelectedNodes(nodes.as_mut_ptr().cast::<i32>());
+        }
         nodes
     }
 
     /// Get the selected link ids.
     #[doc(alias = "GetSelectedLinks")]
+    #[must_use]
     pub fn selected_links(&self) -> Vec<LinkId> {
         let nr_links = self.num_selected_links() as usize;
         let mut links = vec![LinkId { id: 0 }; nr_links];
-        unsafe { sys::imnodes_GetSelectedLinks(links.as_mut_ptr() as _) };
+        unsafe {
+            sys::imnodes_GetSelectedLinks(links.as_mut_ptr().cast::<i32>());
+        }
         links
     }
 
     /// Did the user finish creating a new link?
     #[doc(alias = "IsLinkCreated")]
+    #[must_use]
     pub fn links_created(&self) -> Option<Link> {
         let mut started_at_node_id: i32 = -1;
         let mut started_at_attribute_id: i32 = -1;
@@ -106,11 +115,11 @@ impl OuterScope {
 
         let is_created = unsafe {
             sys::imnodes_IsLinkCreated_IntPtr(
-                &mut started_at_node_id as _,
-                &mut started_at_attribute_id as _,
-                &mut ended_at_node_id as _,
-                &mut ended_at_attribute_id as _,
-                &mut created_from_snap as *mut bool,
+                core::ptr::from_mut(&mut started_at_node_id),
+                core::ptr::from_mut(&mut started_at_attribute_id),
+                core::ptr::from_mut(&mut ended_at_node_id),
+                core::ptr::from_mut(&mut ended_at_attribute_id),
+                core::ptr::from_mut::<bool>(&mut created_from_snap),
             )
         };
 
@@ -143,22 +152,24 @@ impl OuterScope {
         }
     }
 
-    /// Was an existing link detached from a pin by the user? The detached link's id is assigned to the output argument link_id.
+    /// Was an existing link detached from a pin by the user? The detached link's id is assigned to the output argument `link_id`.
     #[doc(alias = "IsLinkDestroyed")]
+    #[must_use]
     pub fn get_dropped_link(&self) -> Option<LinkId> {
         let mut id: i32 = -1;
-        if unsafe { sys::imnodes_IsLinkDestroyed(&mut id as _) } {
+        if unsafe { sys::imnodes_IsLinkDestroyed(core::ptr::from_mut(&mut id)) } {
             Some(LinkId { id })
         } else {
             None
         }
     }
 
-    /// IsPinHovered
+    /// `IsPinHovered`
     #[doc(alias = "IsPinHovered")]
+    #[must_use]
     pub fn get_hovered_pin(&self) -> Option<PinId> {
         let mut id: i32 = -1;
-        let ok = unsafe { sys::imnodes_IsPinHovered(&mut id as _) };
+        let ok = unsafe { sys::imnodes_IsPinHovered(core::ptr::from_mut(&mut id)) };
         if ok {
             Some(PinId { id })
         } else {
@@ -166,11 +177,12 @@ impl OuterScope {
         }
     }
 
-    /// IsLinkHovered
+    /// `IsLinkHovered`
     #[doc(alias = "IsLinkHovered")]
+    #[must_use]
     pub fn get_hovered_link(&self) -> Option<LinkId> {
         let mut id: i32 = -1;
-        let ok = unsafe { sys::imnodes_IsLinkHovered(&mut id as _) };
+        let ok = unsafe { sys::imnodes_IsLinkHovered(core::ptr::from_mut(&mut id)) };
         if ok {
             Some(LinkId { id })
         } else {
@@ -178,11 +190,12 @@ impl OuterScope {
         }
     }
 
-    /// IsAnyAttributeActive
+    /// `IsAnyAttributeActive`
     #[doc(alias = "IsAnyAttributeActive")]
+    #[must_use]
     pub fn get_active_attribute(&self) -> Option<AttributeId> {
         let mut id: i32 = -1;
-        let ok = unsafe { sys::imnodes_IsAnyAttributeActive(&mut id as _) };
+        let ok = unsafe { sys::imnodes_IsAnyAttributeActive(core::ptr::from_mut(&mut id)) };
         if ok {
             Some(AttributeId { id })
         } else {
@@ -190,11 +203,12 @@ impl OuterScope {
         }
     }
 
-    /// IsLinkStarted
+    /// `IsLinkStarted`
     #[doc(alias = "IsLinkStarted")]
+    #[must_use]
     pub fn from_where_link_started(&self) -> Option<PinId> {
         let mut id: i32 = -1;
-        let ok = unsafe { sys::imnodes_IsLinkStarted(&mut id as _) };
+        let ok = unsafe { sys::imnodes_IsLinkStarted(core::ptr::from_mut(&mut id)) };
         if ok {
             Some(PinId { id })
         } else {
@@ -202,11 +216,14 @@ impl OuterScope {
         }
     }
 
-    /// IsLinkDropped
+    /// `IsLinkDropped`
     #[doc(alias = "IsLinkDropped")]
+    #[must_use]
     pub fn from_where_link_dropped(&self, including_detached_links: bool) -> Option<PinId> {
         let mut id: i32 = -1;
-        let ok = unsafe { sys::imnodes_IsLinkDropped(&mut id as _, including_detached_links) };
+        let ok = unsafe {
+            sys::imnodes_IsLinkDropped(core::ptr::from_mut(&mut id), including_detached_links)
+        };
         if ok {
             Some(PinId { id })
         } else {
@@ -215,53 +232,56 @@ impl OuterScope {
     }
 }
 
-/// Scope_Editor = 1 << 1,
+/// `Scope_Editor` = 1 << 1,
 #[derive(Debug)]
 pub struct EditorScope {}
 impl EditorScope {
-    /// MiniMap
+    /// `MiniMap`
     #[doc(alias = "MiniMap", alias = "EndNode")]
     pub fn add_mini_map(&self, location: MiniMapLocation) {
         // TODO add all the sizing and placement and callback options
         let minimap_size_fraction = 0.2;
         let node_hovering_callback = None;
-        let node_hovering_callback_data = std::ptr::null::<std::ffi::c_void>();
+        let node_hovering_callback_data = core::ptr::null::<core::ffi::c_void>();
 
         unsafe {
             sys::imnodes_MiniMap(
                 minimap_size_fraction,
                 location as i32,
                 node_hovering_callback,
-                node_hovering_callback_data as _,
-            )
+                node_hovering_callback_data.cast_mut(),
+            );
         }
     }
 
-    /// BeginNode
+    /// `BeginNode`
     /// ...
-    /// EndNode
+    /// `EndNode`
     #[doc(alias = "BeginNode", alias = "EndNode")]
     pub fn add_node<F: FnOnce(NodeScope)>(&mut self, id: NodeId, f: F) {
         unsafe { sys::imnodes_BeginNode(id.into()) }
 
         f(NodeScope {});
-        unsafe { sys::imnodes_EndNode() };
+        unsafe {
+            sys::imnodes_EndNode();
+        }
     }
 
     /// Render a link between attributes.
     ///
     /// The attributes ids used here must match the ids used in Begin(Input|Output)Attribute function
-    /// calls. The order of start_attr and end_attr doesn't make a difference for rendering the link.
+    /// calls. The order of `start_attr` and `end_attr` doesn't make a difference for rendering the link.
     #[doc(alias = "Link")]
     pub fn add_link(&self, id: LinkId, input: InputPinId, output: OutputPinId) {
         unsafe { sys::imnodes_Link(id.into(), input.into(), output.into()) }
     }
 
-    /// IsAnyAttributeActive
+    /// `IsAnyAttributeActive`
     #[doc(alias = "IsAnyAttributeActive")]
+    #[must_use]
     pub fn get_active_attribute(&self) -> Option<AttributeId> {
         let mut id: i32 = -1;
-        let ok = unsafe { sys::imnodes_IsAnyAttributeActive(&mut id as _) };
+        let ok = unsafe { sys::imnodes_IsAnyAttributeActive(core::ptr::from_mut(&mut id)) };
         if ok {
             Some(AttributeId { id })
         } else {
@@ -271,16 +291,17 @@ impl EditorScope {
 
     /// Returns true if the current node editor canvas is being hovered over by the mouse, and is not blocked by any other windows.
     #[doc(alias = "IsEditorHovered")]
+    #[must_use]
     pub fn is_hovered(&self) -> bool {
         unsafe { sys::imnodes_IsEditorHovered() }
     }
 }
 
-/// Scope_Node = 1 << 2,
+/// `Scope_Node` = 1 << 2,
 #[derive(Debug)]
 pub struct NodeScope {}
 impl NodeScope {
-    /// Place your node title bar content (such as the node title, using [imgui::Ui::text]) between the
+    /// Place your node title bar content (such as the node title, using [`imgui::Ui::text`]) between the
     /// following function calls. These functions have to be called before adding any attributes, or the
     /// layout of the node will be incorrect.
     ///
@@ -292,11 +313,11 @@ impl NodeScope {
         unsafe { sys::imnodes_EndNodeTitleBar() }
     }
 
-    /// Attributes are ImGui UI elements embedded within the node. Attributes can have pin shapes
+    /// Attributes are `ImGui` UI elements embedded within the node. Attributes can have pin shapes
     /// rendered next to them. Links are created between pins.
     ///
-    /// The activity status of an attribute can be checked via the [crate::helpers::is_last_attribute_active()] and
-    /// [OuterScope::get_active_attribute()] function calls. This is one easy way of checking for any changes made to
+    /// The activity status of an attribute can be checked via the [`crate::helpers::is_last_attribute_active()`] and
+    /// [`OuterScope::get_active_attribute()`] function calls. This is one easy way of checking for any changes made to
     /// an attribute's drag float UI, for instance.
     ///
     // Each attribute id must be unique.
@@ -309,11 +330,11 @@ impl NodeScope {
         unsafe { sys::imnodes_EndInputAttribute() };
     }
 
-    /// Attributes are ImGui UI elements embedded within the node. Attributes can have pin shapes
+    /// Attributes are `ImGui` UI elements embedded within the node. Attributes can have pin shapes
     /// rendered next to them. Links are created between pins.
     ///
-    /// The activity status of an attribute can be checked via the [crate::helpers::is_last_attribute_active()] and
-    /// [OuterScope::get_active_attribute()] function calls. This is one easy way of checking for any changes made to
+    /// The activity status of an attribute can be checked via the [`crate::helpers::is_last_attribute_active()`] and
+    /// [`OuterScope::get_active_attribute()`] function calls. This is one easy way of checking for any changes made to
     /// an attribute's drag float UI, for instance.
     ///
     // Each attribute id must be unique.

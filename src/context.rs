@@ -12,18 +12,20 @@ pub struct EditorContext {
 impl EditorContext {
     /// use this context now
     #[doc(alias = "EditorContextSet")]
+    #[must_use]
     pub fn set_as_current_editor(&self) -> &Self {
         unsafe { imnodes_sys::imnodes_EditorContextSet(self.raw) };
         self
     }
 
-    /// generate Singleton IdentifierGenerator
+    /// generate Singleton `IdentifierGenerator`
+    #[must_use]
     pub fn new_identifier_generator(&self) -> crate::IdentifierGenerator {
         crate::IdentifierGenerator::new()
     }
 
-    /// GetStyle
-    /// TODO see Style_destroy, make sure this does not leak
+    /// `GetStyle`
+    /// TODO see `Style_destroy`, make sure this does not leak
     /// Returns the global style struct. See the struct declaration for default values.
     #[doc(alias = "GetStyle")]
     pub fn get_style(&mut self) -> &mut imnodes_sys::ImNodesStyle {
@@ -40,7 +42,7 @@ impl Drop for EditorContext {
     }
 }
 
-/// imnodes_CreateContext
+/// `imnodes_CreateContext`
 #[doc(alias = "CreateContext")]
 pub struct Context {
     context: *mut imnodes_sys::ImNodesContext,
@@ -54,6 +56,7 @@ impl Default for Context {
 
 impl Context {
     /// create global context
+    #[must_use]
     pub fn new() -> Self {
         let context = unsafe { imnodes_sys::imnodes_CreateContext() };
 
@@ -61,6 +64,7 @@ impl Context {
     }
 
     /// created the context for one editor/ grid
+    #[must_use]
     pub fn create_editor(&self) -> EditorContext {
         EditorContext {
             raw: unsafe { imnodes_sys::imnodes_EditorContextCreate() },

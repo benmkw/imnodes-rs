@@ -2,14 +2,17 @@ use crate::EditorContext;
 use imnodes_sys as sys;
 
 impl EditorContext {
-    /// EditorContextGetPanning
+    /// `EditorContextGetPanning`
     #[doc(alias = "EditorContextGetPanning")]
+    #[must_use]
     pub fn get_panning(&self) -> sys::ImVec2 {
         let mut position = sys::ImVec2 { x: 0.0, y: 0.0 };
-        unsafe { sys::imnodes_EditorContextGetPanning(&mut position as _) };
+        unsafe {
+            sys::imnodes_EditorContextGetPanning(core::ptr::from_mut(&mut position));
+        }
         position
     }
-    /// EditorContextResetPanning
+    /// `EditorContextResetPanning`
     #[doc(alias = "EditorContextResetPanning")]
     pub fn reset_panning(&self, pos: sys::ImVec2) {
         unsafe { sys::imnodes_EditorContextResetPanning(pos) };
@@ -32,6 +35,7 @@ impl EditorContext {
 
 /// Was the previous attribute active? This will continuously return true while the left mouse button is being pressed over the UI content of the attribute.
 #[doc(alias = "IsAttributeActive")]
+#[must_use]
 pub fn is_last_attribute_active() -> bool {
     unsafe { sys::imnodes_IsAttributeActive() }
 }

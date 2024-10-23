@@ -5,22 +5,18 @@ mod multi_editor;
 
 fn main() {
     // Set up window and GPU
-    let event_loop = winit::event_loop::EventLoop::new();
+    let event_loop = winit::event_loop::EventLoop::new().unwrap();
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
 
-    let (window, size, surface) = {
-        let window = winit::window::Window::new(&event_loop).unwrap();
-        window.set_inner_size(winit::dpi::LogicalSize {
-            width: 1280.0,
-            height: 720.0,
-        });
-        window.set_title("imnodes-wgpu");
-        let size = window.inner_size();
-
-        let surface = unsafe { instance.create_surface(&window) }.unwrap();
-
-        (window, size, surface)
+    let window = {
+        winit::window::WindowBuilder::new()
+            .with_inner_size(winit::dpi::LogicalSize::new(1280.0, 720.0))
+            .with_title("imnodes-wgpu")
+            .build(&event_loop)
+            .unwrap()
     };
+    let size = window.inner_size();
+    let surface = instance.create_surface(&window).unwrap();
 
     let adapter =
         futures::executor::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
@@ -45,6 +41,7 @@ fn main() {
         present_mode: wgpu::PresentMode::Fifo,
         alpha_mode: wgpu::CompositeAlphaMode::Auto,
         view_formats: vec![wgpu::TextureFormat::Bgra8Unorm],
+        desired_maximum_frame_latency: 2,
     };
 
     surface.configure(&device, &surface_desc);
@@ -96,8 +93,8 @@ fn main() {
     let mut second_editor_state_2 = multi_editor::MultiEditState::new(&imnodes_ui);
     let mut color_editor = color_editor::State::new(&imnodes_ui);
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = winit::event_loop::ControlFlow::Poll;
+    let _ = event_loop.run(|event, window_target| {
+        window_target.set_control_flow(winit::event_loop::ControlFlow::Poll);
 
         use winit::event::{Event, WindowEvent};
 
@@ -120,9 +117,12 @@ fn main() {
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
-            } => *control_flow = winit::event_loop::ControlFlow::Exit,
-            Event::MainEventsCleared => window.request_redraw(),
-            Event::RedrawEventsCleared => {
+            } => window_target.exit(),
+            Event::AboutToWait => window.request_redraw(),
+            Event::WindowEvent {
+                event: WindowEvent::RedrawRequested,
+                ..
+            } => {
                 let now = std::time::Instant::now();
                 imgui.io_mut().update_delta_time(now - last_frame);
                 last_frame = now;
@@ -198,7 +198,6 @@ fn main() {
                     .create_view(&wgpu::TextureViewDescriptor::default());
 
                 let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: None,
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view,
                         resolve_target: None,
@@ -209,10 +208,10 @@ fn main() {
                                 b: 0.3,
                                 a: 1.0,
                             }),
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         },
                     })],
-                    depth_stencil_attachment: None,
+                    ..Default::default()
                 });
 
                 renderer
@@ -222,7 +221,7 @@ fn main() {
                 drop(rpass); // renders to screen on drop, will probaly be changed in wgpu 0.7 or later
 
                 queue.submit(Some(encoder.finish()));
-                frame.present()
+                frame.present();
             }
             _ => (),
         }

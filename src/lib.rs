@@ -102,8 +102,8 @@ impl From<AttributeId> for i32 {
 /// * editor space coordinates -- the origin is the upper left corner of the node editor window
 /// * grid space coordinates, -- the origin is the upper left corner of the node editor window,
 ///
-/// translated by the current editor panning vector (see [EditorContext::get_panning()] and
-/// [EditorContext::reset_panning()])
+/// translated by the current editor panning vector (see [`EditorContext::get_panning()`] and
+/// [`EditorContext::reset_panning()`])
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 pub enum CoordinateSystem {
     /// probably what you want
@@ -126,23 +126,30 @@ pub struct NodeId {
 impl NodeId {
     /// Enable or disable the ability to click and drag a specific node.
     #[doc(alias = "SetNodeDraggable")]
+    #[must_use]
     pub fn set_draggable(&self, draggable: bool) -> &Self {
         unsafe { sys::imnodes_SetNodeDraggable(self.id, draggable) };
         self
     }
 
-    /// EditorContextMoveToNode
+    /// `EditorContextMoveToNode`
     #[doc(alias = "EditorContextMoveToNode")]
+    #[must_use]
     pub fn move_editor_to(&self) -> &Self {
-        unsafe { sys::imnodes_EditorContextMoveToNode(self.id) };
+        unsafe {
+            sys::imnodes_EditorContextMoveToNode(self.id);
+        }
         self
     }
 
     /// get the size of the node
     #[doc(alias = "GetNodeDimensions")]
+    #[must_use]
     pub fn get_dimensions(&self) -> ImVec2 {
         let mut dimension = ImVec2 { x: 0.0, y: 0.0 };
-        unsafe { sys::imnodes_GetNodeDimensions(&mut dimension as _, self.id) };
+        unsafe {
+            sys::imnodes_GetNodeDimensions(core::ptr::from_mut(&mut dimension), self.id);
+        }
         dimension
     }
 
@@ -152,17 +159,18 @@ impl NodeId {
         alias = "SetNodeEditorSpacePos",
         alias = "SetNodeGridSpacePos"
     )]
+    #[must_use]
     pub fn set_position(&self, x: f32, y: f32, coordinate_sytem: CoordinateSystem) -> &Self {
         let pos = ImVec2 { x, y };
         match coordinate_sytem {
             CoordinateSystem::ScreenSpace => unsafe {
-                sys::imnodes_SetNodeScreenSpacePos(self.id, pos)
+                sys::imnodes_SetNodeScreenSpacePos(self.id, pos);
             },
             CoordinateSystem::EditorSpace => unsafe {
-                sys::imnodes_SetNodeEditorSpacePos(self.id, pos)
+                sys::imnodes_SetNodeEditorSpacePos(self.id, pos);
             },
             CoordinateSystem::GridSpace => unsafe {
-                sys::imnodes_SetNodeGridSpacePos(self.id, pos)
+                sys::imnodes_SetNodeGridSpacePos(self.id, pos);
             },
         };
         self
@@ -174,18 +182,19 @@ impl NodeId {
         alias = "GetNodeEditorSpacePos",
         alias = "GetNodeGridSpacePos"
     )]
+    #[must_use]
     pub fn get_position(&self, coordinate_sytem: CoordinateSystem) -> ImVec2 {
         let mut pos = ImVec2 { x: 0.0, y: 0.0 };
 
         match coordinate_sytem {
             CoordinateSystem::ScreenSpace => unsafe {
-                sys::imnodes_GetNodeScreenSpacePos(&mut pos as _, self.id)
+                sys::imnodes_GetNodeScreenSpacePos(core::ptr::from_mut(&mut pos), self.id);
             },
             CoordinateSystem::EditorSpace => unsafe {
-                sys::imnodes_GetNodeEditorSpacePos(&mut pos as _, self.id)
+                sys::imnodes_GetNodeEditorSpacePos(core::ptr::from_mut(&mut pos), self.id);
             },
             CoordinateSystem::GridSpace => unsafe {
-                sys::imnodes_GetNodeGridSpacePos(&mut pos as _, self.id)
+                sys::imnodes_GetNodeGridSpacePos(core::ptr::from_mut(&mut pos), self.id);
             },
         };
 
@@ -201,7 +210,7 @@ impl From<NodeId> for i32 {
 
 /// either input or output pin
 ///
-/// like attribute_id in the original source
+/// like `attribute_id` in the original source
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub struct PinId {
     id: i32,
@@ -212,6 +221,7 @@ impl PinId {
     ///
     /// Did the user start dragging a new link from a pin?
     #[doc(alias = "IsLinkStarted")]
+    #[must_use]
     pub fn is_start_of_link(&self, scope: &OuterScope) -> bool {
         Some(*self) == scope.from_where_link_started()
     }
@@ -223,8 +233,9 @@ impl PinId {
     /// 1) a link which is created at a pin and then dropped
     /// 2) an existing link which is detached from a pin and then dropped
     ///
-    /// Use the including_detached_links flag to control whether this function triggers when the user detaches a link and drops it.
+    /// Use the `including_detached_links` flag to control whether this function triggers when the user detaches a link and drops it.
     #[doc(alias = "IsLinkDropped")]
+    #[must_use]
     pub fn dropped_link(&self, including_detached_links: bool, scope: &OuterScope) -> bool {
         Some(*self) == scope.from_where_link_dropped(including_detached_links)
     }
@@ -244,7 +255,7 @@ impl From<InputPinId> for i32 {
 
 impl From<InputPinId> for PinId {
     fn from(val: InputPinId) -> Self {
-        PinId { id: val.id }
+        Self { id: val.id }
     }
 }
 
@@ -262,7 +273,7 @@ impl From<OutputPinId> for i32 {
 
 impl From<OutputPinId> for PinId {
     fn from(val: OutputPinId) -> Self {
-        PinId { id: val.id }
+        Self { id: val.id }
     }
 }
 
@@ -273,8 +284,9 @@ pub struct LinkId {
 }
 
 impl LinkId {
-    /// checks if the link of this LinkId got removed
+    /// checks if the link of this `LinkId` got removed
     #[doc(alias = "IsLinkDestroyed")]
+    #[must_use]
     pub fn is_removed(&self, scope: &OuterScope) -> bool {
         Some(*self) == scope.get_dropped_link()
     }
@@ -332,11 +344,12 @@ impl Hoverable for LinkId {
     }
 }
 
-/// IsNodeHovered
+/// `IsNodeHovered`
 #[doc(alias = "IsNodeHovered")]
+#[must_use]
 pub fn get_hovered_node() -> Option<NodeId> {
     let mut id: i32 = -1;
-    let ok = unsafe { sys::imnodes_IsNodeHovered(&mut id as _) };
+    let ok = unsafe { sys::imnodes_IsNodeHovered(core::ptr::from_mut(&mut id)) };
     if ok {
         Some(NodeId { id })
     } else {

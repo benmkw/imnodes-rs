@@ -4,10 +4,11 @@ use crate::{sys, EditorContext};
 use imgui::ImColor32;
 
 /// TODO wrap this to not expose the sys version
-/// impl Default for that struct to replace create_imnodes_style()
+/// impl Default for that struct to replace `create_imnodes_style()`
 pub use sys::ImNodesStyle;
 
 /// from https://github.com/Nelarius/imnodes/blob/d88f99125bb72cdb71b4c27ff6eb7f318d89a4c5/imnodes.cpp#L1994-L2000
+#[must_use]
 pub fn create_imnodes_style() -> ImNodesStyle {
     ImNodesStyle {
         GridSpacing: 24.0,
@@ -122,8 +123,8 @@ impl Drop for ColorToken {
     }
 }
 
-/// Location of the MiniMap
-/// TODO add link to add_mini_map
+/// Location of the `MiniMap`
+/// TODO add link to `add_mini_map`
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[repr(u32)]
 pub enum MiniMapLocation {

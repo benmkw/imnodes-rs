@@ -47,7 +47,10 @@ pub fn show(ui: &imgui::Ui, state: &mut MultiEditState) {
     // see https://github.com/ocornut/imgui/blob/master/docs/FAQ.md#q-how-can-i-have-multiple-widgets-with-the-same-label
 
     // TODO HACK why was this needed? is it safe to remove this?
-    let id = ui.push_id(format!("{:?}", state as *mut MultiEditState));
+    let id = ui.push_id(format!(
+        "{:?}",
+        core::ptr::from_mut::<MultiEditState>(state)
+    ));
 
     state
         .editor_context
@@ -88,7 +91,7 @@ pub fn show(ui: &imgui::Ui, state: &mut MultiEditState) {
         {
             let id = id_gen.next_node();
             let [x, y] = ui.io().mouse_pos;
-            id.set_position(x, y, imnodes::CoordinateSystem::ScreenSpace);
+            let _ = id.set_position(x, y, imnodes::CoordinateSystem::ScreenSpace);
             nodes.push(Node {
                 id,
                 input: id_gen.next_input_pin(),
@@ -131,7 +134,7 @@ pub fn show(ui: &imgui::Ui, state: &mut MultiEditState) {
             id: state.id_gen.next_link(),
             start: link.start_pin,
             end: link.end_pin,
-        })
+        });
     }
 
     if let Some(link) = outer_scope.get_dropped_link() {

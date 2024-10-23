@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 // This is taken pretty vanilla from
 // https://github.com/Gekkio/imgui-rs/blob/master/imgui-sys/build.rs
 // for now, but expected to diverge from that over time.
@@ -14,10 +12,7 @@ fn assert_file_exists(path: &str) -> io::Result<()> {
     match fs::metadata(path) {
         Ok(_) => Ok(()),
         Err(ref e) if e.kind() == io::ErrorKind::NotFound => {
-            panic!(
-                "Can't access {}. Did you forget to fetch git submodules?",
-                path
-            );
+            panic!("Can't access {path}. Did you forget to fetch git submodules?");
         }
         Err(e) => Err(e),
     }
