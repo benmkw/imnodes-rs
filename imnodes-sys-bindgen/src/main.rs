@@ -31,7 +31,7 @@ fn main() {
         )
         // https://github.com/rust-lang/rust-bindgen/issues/1533
         .clang_arg(format!("-I{}", cimgui_include_path.to_str().unwrap()))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks))
+        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .clang_arg("-DCIMGUI_DEFINE_ENUMS_AND_STRUCTS=1")
         .allowlist_function("imnodes_.*")
         .allowlist_function("ImNodes.*")

@@ -8,13 +8,15 @@ fn main() {
     let event_loop = winit::event_loop::EventLoop::new().unwrap();
     let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
 
-    let window = {
-        winit::window::WindowBuilder::new()
-            .with_inner_size(winit::dpi::LogicalSize::new(1280.0, 720.0))
-            .with_title("imnodes-wgpu")
-            .build(&event_loop)
-            .unwrap()
-    };
+    let window = event_loop
+        .create_window(
+            winit::window::WindowAttributes::new()
+                .with_inner_size(winit::dpi::Size::Logical(winit::dpi::LogicalSize::new(
+                    1280.0, 720.0,
+                )))
+                .with_title("imnodes-wgpu"),
+        )
+        .unwrap();
     let size = window.inner_size();
     let surface = instance.create_surface(&window).unwrap();
 

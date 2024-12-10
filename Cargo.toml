@@ -1,6 +1,6 @@
 [package]
 name = "imnodes"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 authors = ["Benedikt Mandelkow", "imnodes-rs contributors"]
 description = "Rust bindings to https://github.com/Nelarius/imnodes"
@@ -9,7 +9,7 @@ categories = ["gui", "api-bindings"]
 readme = "README.md"
 
 [dependencies]
-imnodes-sys = { version = "0.3.0", path = "imnodes-sys" }
+imnodes-sys = { version = "0.4.0", path = "imnodes-sys" }
 imgui = "0.12"
 
 [features]
