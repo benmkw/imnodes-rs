@@ -2,6 +2,9 @@
 
 ![Tests](https://github.com/benmkw/imnodes-rs/workflows/Tests/badge.svg)
 
+[![imnodes](https://img.shields.io/crates/v/imnodes)](https://crates.io/crates/imnodes)
+[![imnodes-sys](https://img.shields.io/crates/v/imnodes-sys)](https://crates.io/crates/imnodes-sys)
+
 These are bindings for [imnodes](https://github.com/Nelarius/imnodes)
 using [cimnodes](https://github.com/cimgui/cimnodes) for [imgui-rs](https://github.com/Gekkio/imgui-rs).
 

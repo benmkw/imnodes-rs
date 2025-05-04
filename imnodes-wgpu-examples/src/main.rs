@@ -1,56 +1,67 @@
-// the actual imnodes samples are in there
+use std::time::Instant;
+use winit::{
+    event::{Event, WindowEvent},
+    event_loop::EventLoop,
+    window::WindowAttributes,
+};
+
 mod color_editor;
 mod hello_world;
 mod multi_editor;
+mod save_load;
 
 fn main() {
     // Set up window and GPU
-    let event_loop = winit::event_loop::EventLoop::new().unwrap();
-    let instance = wgpu::Instance::new(wgpu::InstanceDescriptor::default());
+    let event_loop = EventLoop::new().unwrap();
+    let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor::default());
 
     let window = event_loop
         .create_window(
-            winit::window::WindowAttributes::new()
-                .with_inner_size(winit::dpi::Size::Logical(winit::dpi::LogicalSize::new(
-                    1280.0, 720.0,
-                )))
+            WindowAttributes::new()
+                .with_inner_size(winit::dpi::LogicalSize::new(1280.0, 720.0))
                 .with_title("imnodes-wgpu"),
         )
         .unwrap();
+
     let size = window.inner_size();
-    let surface = instance.create_surface(&window).unwrap();
+    // Safety: create_surface is safe according to wgpu docs if window handle is valid.
+    let surface = instance.create_surface(&window).unwrap(); // Removed unsafe block
 
     let adapter =
         futures::executor::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
             compatible_surface: Some(&surface),
-            ..Default::default()
+            force_fallback_adapter: false,
         }))
         .unwrap();
 
-    let (device, queue) = futures::executor::block_on(
-        adapter.request_device(&wgpu::DeviceDescriptor::default(), None),
-    )
-    .unwrap();
+    let (device, queue) =
+        futures::executor::block_on(adapter.request_device(&wgpu::DeviceDescriptor::default()))
+            .unwrap();
 
-    // Set up swap chain
-    let mut surface_desc = wgpu::SurfaceConfiguration {
+    // Set up swap chain/surface config
+    let surface_caps = surface.get_capabilities(&adapter);
+    let surface_format = surface_caps
+        .formats
+        .iter()
+        .copied()
+        .find(|f| *f == wgpu::TextureFormat::Bgra8UnormSrgb)
+        .unwrap_or(surface_caps.formats[0]);
+
+    let mut surface_config = wgpu::SurfaceConfiguration {
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-        // The view format Rgba8Unorm is not compatible with texture format Bgra8UnormSrgb, only changing srgb-ness is allowed
-        format: wgpu::TextureFormat::Bgra8UnormSrgb,
+        format: surface_format,
         width: size.width,
         height: size.height,
-        present_mode: wgpu::PresentMode::Fifo,
-        alpha_mode: wgpu::CompositeAlphaMode::Auto,
-        view_formats: vec![wgpu::TextureFormat::Bgra8Unorm],
+        present_mode: surface_caps.present_modes[0],
+        alpha_mode: surface_caps.alpha_modes[0],
+        view_formats: vec![],
         desired_maximum_frame_latency: 2,
     };
 
-    surface.configure(&device, &surface_desc);
+    surface.configure(&device, &surface_config);
 
-    // Set up dear imgui
     let mut imgui = imgui::Context::create();
-    // Set up dear imnodes
     let imnodes_ui = imnodes::Context::new();
 
     let mut platform = imgui_winit_support::WinitPlatform::init(&mut imgui);
@@ -77,157 +88,203 @@ fn main() {
             }),
         }]);
 
-    //
-    // Set up dear imgui wgpu renderer
-    //
     let renderer_config = imgui_wgpu::RendererConfig {
-        texture_format: surface_desc.format,
+        texture_format: surface_config.format,
         ..Default::default()
     };
 
     let mut renderer = imgui_wgpu::Renderer::new(&mut imgui, &device, &queue, renderer_config);
 
-    let mut last_frame = std::time::Instant::now();
+    let mut last_frame = Instant::now();
     let mut last_cursor = None;
 
+    // Create editor states
     let mut first_editor = imnodes_ui.create_editor();
     let mut second_editor_state_1 = multi_editor::MultiEditState::new(&imnodes_ui);
     let mut second_editor_state_2 = multi_editor::MultiEditState::new(&imnodes_ui);
     let mut color_editor = color_editor::State::new(&imnodes_ui);
+    let mut save_load_editor = save_load::SaveLoadState::new(&imnodes_ui);
 
-    let _ = event_loop.run(|event, window_target| {
-        window_target.set_control_flow(winit::event_loop::ControlFlow::Poll);
+    event_loop
+        .run(|event, elwt| {
+            // Pass the outer event reference to handle_event
+            platform.handle_event(imgui.io_mut(), &window, &event);
 
-        use winit::event::{Event, WindowEvent};
+            match event {
+                Event::WindowEvent {
+                    event: window_event,
+                    window_id,
+                } if window_id == window.id() => {
+                    match window_event {
+                        WindowEvent::ScaleFactorChanged { scale_factor, .. } => {
+                            hidpi_factor = scale_factor;
+                        }
+                        WindowEvent::Resized(size) => {
+                            if size.width > 0 && size.height > 0 {
+                                surface_config.width = size.width;
+                                surface_config.height = size.height;
+                                surface.configure(&device, &surface_config);
+                            }
+                        }
+                        WindowEvent::CloseRequested => elwt.exit(),
+                        WindowEvent::RedrawRequested => {
+                            let now = Instant::now();
+                            imgui.io_mut().update_delta_time(now - last_frame);
+                            last_frame = now;
 
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::ScaleFactorChanged { scale_factor, .. },
-                ..
-            } => {
-                hidpi_factor = scale_factor;
-            }
-            Event::WindowEvent {
-                event: WindowEvent::Resized(size),
-                ..
-            } => {
-                // Recreate the swap chain with the new size
-                surface_desc.width = size.width;
-                surface_desc.height = size.height;
-                surface.configure(&device, &surface_desc);
-            }
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => window_target.exit(),
-            Event::AboutToWait => window.request_redraw(),
-            Event::WindowEvent {
-                event: WindowEvent::RedrawRequested,
-                ..
-            } => {
-                let now = std::time::Instant::now();
-                imgui.io_mut().update_delta_time(now - last_frame);
-                last_frame = now;
+                            let frame = match surface.get_current_texture() {
+                                Ok(frame) => frame,
+                                Err(wgpu::SurfaceError::Outdated) => {
+                                    surface.configure(&device, &surface_config);
+                                    surface.get_current_texture().expect(
+                                        "Failed to acquire next surface texture after outdated!",
+                                    )
+                                }
+                                Err(e) => {
+                                    eprintln!("Dropped frame: {e:?}");
+                                    window.request_redraw(); // Request redraw on error
+                                    return;
+                                }
+                            };
+                            let view = frame
+                                .texture
+                                .create_view(&wgpu::TextureViewDescriptor::default());
 
-                let frame = match surface.get_current_texture() {
-                    Ok(frame) => frame,
-                    Err(e) => {
-                        eprintln!("dropped frame: {:?}", e);
-                        return;
+                            platform
+                                .prepare_frame(imgui.io_mut(), &window)
+                                .expect("Failed to prepare frame");
+                            let ui = imgui.frame();
+
+                            {
+                                let window_ref = ui
+                                    .window("Hello imnodes")
+                                    .resizable(false)
+                                    .position([0.0, 0.0], imgui::Condition::Always)
+                                    .size(
+                                        [
+                                            surface_config.width as f32 / hidpi_factor as f32,
+                                            surface_config.height as f32 / hidpi_factor as f32,
+                                        ],
+                                        imgui::Condition::Always,
+                                    );
+
+                                window_ref.build(|| {
+                                    ui.text("Hello from imnodes-rs!");
+
+                                    if imgui::CollapsingHeader::new("hello world").build(ui) {
+                                        ui.child_window("hello_world_child")
+                                            .size([0.0, 200.0])
+                                            .build(|| {
+                                                let _ = first_editor.set_as_current_editor();
+                                                hello_world::show(ui, &mut first_editor);
+                                            });
+                                    }
+
+                                    if imgui::CollapsingHeader::new("Save/Load Example").build(ui) {
+                                        ui.child_window("save_load_child").size([0.0, 0.0]).build(
+                                            || {
+                                                let _ = save_load_editor
+                                                    .editor_context
+                                                    .set_as_current_editor();
+                                                save_load::show(ui, &mut save_load_editor);
+                                            },
+                                        );
+                                    }
+
+                                    if imgui::CollapsingHeader::new("multi editor").build(ui) {
+                                        // Wrap ui.style() call in unsafe block
+                                        let item_spacing = unsafe { ui.style().item_spacing[0] };
+                                        let half_width = (ui.window_content_region_max()[0]
+                                            - ui.window_content_region_min()[0])
+                                            * 0.5
+                                            - item_spacing * 0.5;
+
+                                        ui.child_window("multi_editor_child_1")
+                                            .size([half_width, 300.0])
+                                            .build(|| {
+                                                let _ = second_editor_state_1
+                                                    .editor_context
+                                                    .set_as_current_editor();
+                                                multi_editor::show(ui, &mut second_editor_state_1);
+                                            });
+
+                                        ui.same_line();
+
+                                        ui.child_window("multi_editor_child_2")
+                                            .size([half_width, 300.0])
+                                            .build(|| {
+                                                let _ = second_editor_state_2
+                                                    .editor_context
+                                                    .set_as_current_editor();
+                                                multi_editor::show(ui, &mut second_editor_state_2);
+                                            });
+                                    }
+
+                                    if imgui::CollapsingHeader::new("color editor").build(ui) {
+                                        ui.child_window("color_editor_child")
+                                            .size([0.0, 0.0])
+                                            .build(|| {
+                                                let _ = color_editor
+                                                    .editor_context
+                                                    .set_as_current_editor();
+                                                color_editor::show(ui, &mut color_editor);
+                                            });
+                                    }
+                                });
+                            }
+
+                            let mut encoder: wgpu::CommandEncoder =
+                                device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                                    label: None,
+                                });
+
+                            if last_cursor != Some(ui.mouse_cursor()) {
+                                last_cursor = Some(ui.mouse_cursor());
+                                platform.prepare_render(ui, &window);
+                            }
+
+                            let mut rpass =
+                                encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                                    label: Some("ImGui Render Pass"),
+                                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                        view: &view,
+                                        resolve_target: None,
+                                        ops: wgpu::Operations {
+                                            load: wgpu::LoadOp::Clear(wgpu::Color {
+                                                r: 0.1,
+                                                g: 0.4,
+                                                b: 0.3,
+                                                a: 1.0,
+                                            }),
+                                            store: wgpu::StoreOp::Store,
+                                        },
+                                    })],
+                                    depth_stencil_attachment: None,
+                                    timestamp_writes: None,
+                                    occlusion_query_set: None,
+                                });
+
+                            renderer
+                                .render(imgui.render(), &queue, &device, &mut rpass)
+                                .expect("Rendering failed");
+
+                            drop(rpass);
+
+                            queue.submit(Some(encoder.finish()));
+                            frame.present();
+                        }
+                        _ => (),
                     }
-                };
-
-                platform
-                    .prepare_frame(imgui.io_mut(), &window)
-                    .expect("Failed to prepare frame");
-                let ui = imgui.frame();
-
-                {
-                    let window = ui
-                        .window("Hello imnodes")
-                        .resizable(false)
-                        .position([0.0, 0.0], imgui::Condition::Always)
-                        .size(
-                            [
-                                surface_desc.width as f32 / hidpi_factor as f32,
-                                surface_desc.height as f32 / hidpi_factor as f32,
-                            ],
-                            imgui::Condition::Always,
-                        );
-
-                    window.build(|| {
-                        ui.text("Hello from imnodes-rs!");
-
-                        if imgui::CollapsingHeader::new("hello world").build(ui) {
-                            ui.child_window("1").size([0.0, 0.0]).build(|| {
-                                hello_world::show(ui, &mut first_editor);
-                            });
-                        }
-
-                        if imgui::CollapsingHeader::new("multi editor").build(ui) {
-                            let width = (ui.window_content_region_max()[0]
-                                - ui.window_content_region_min()[0])
-                                / 2_f32;
-                            ui.child_window("2").size([width, 0.0]).build(|| {
-                                multi_editor::show(ui, &mut second_editor_state_1);
-                            });
-
-                            ui.same_line();
-
-                            ui.child_window("3").size([width, 0.0]).build(|| {
-                                multi_editor::show(ui, &mut second_editor_state_2);
-                            });
-                        }
-
-                        if imgui::CollapsingHeader::new("color editor").build(ui) {
-                            ui.child_window("1").size([0.0, 0.0]).build(|| {
-                                color_editor::show(ui, &mut color_editor);
-                            });
-                        }
-                    });
                 }
-
-                let mut encoder: wgpu::CommandEncoder =
-                    device.create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
-
-                if last_cursor != Some(ui.mouse_cursor()) {
-                    last_cursor = Some(ui.mouse_cursor());
-                    platform.prepare_render(ui, &window);
+                Event::AboutToWait => {
+                    window.request_redraw();
                 }
-
-                let view = &frame
-                    .texture
-                    .create_view(&wgpu::TextureViewDescriptor::default());
-
-                let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                        view,
-                        resolve_target: None,
-                        ops: wgpu::Operations {
-                            load: wgpu::LoadOp::Clear(wgpu::Color {
-                                r: 0.1,
-                                g: 0.4,
-                                b: 0.3,
-                                a: 1.0,
-                            }),
-                            store: wgpu::StoreOp::Store,
-                        },
-                    })],
-                    ..Default::default()
-                });
-
-                renderer
-                    .render(imgui.render(), &queue, &device, &mut rpass)
-                    .expect("Rendering failed");
-
-                drop(rpass); // renders to screen on drop, will probaly be changed in wgpu 0.7 or later
-
-                queue.submit(Some(encoder.finish()));
-                frame.present();
+                _ => (),
             }
-            _ => (),
-        }
 
-        platform.handle_event(imgui.io_mut(), &window, &event);
-    });
+            if !(imgui.io().want_capture_mouse || imgui.io().want_capture_keyboard) {
+                // Handle application-specific input events here if needed
+            }
+        })
+        .unwrap();
 }

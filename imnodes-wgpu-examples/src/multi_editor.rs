@@ -1,16 +1,14 @@
 use imnodes::{
-    editor, AttributeFlag, AttributeId, Context, EditorContext, IdentifierGenerator, InputPinId,
-    LinkId, NodeId, OutputPinId, PinShape,
+    AttributeFlags, AttributeId, Context, EditorContext, IdentifierGenerator, InputPinId, LinkId,
+    NodeId, OutputPinId, PinShape, Style, editor,
 };
 
 pub struct MultiEditState {
-    editor_context: EditorContext,
+    pub editor_context: EditorContext,
     id_gen: IdentifierGenerator,
-
     nodes: Vec<Node>,
     links: Vec<Link>,
-
-    style: imnodes::ImNodesStyle,
+    style: Style,
 }
 
 struct Link {
@@ -36,21 +34,15 @@ impl MultiEditState {
             editor_context,
             nodes: vec![],
             links: vec![],
-            style: imnodes::create_imnodes_style(),
+            style: Style::default(),
         }
     }
 }
 
 /// https://github.com/Nelarius/imnodes/blob/master/example/multi_editor.cpp
 pub fn show(ui: &imgui::Ui, state: &mut MultiEditState) {
-    // just as an example, should not be needed anymore
-    // see https://github.com/ocornut/imgui/blob/master/docs/FAQ.md#q-how-can-i-have-multiple-widgets-with-the-same-label
-
-    // TODO HACK why was this needed? is it safe to remove this?
-    let id = ui.push_id(format!(
-        "{:?}",
-        core::ptr::from_mut::<MultiEditState>(state)
-    ));
+    // Push unique ID for this editor instance using push_id_ptr with a reference
+    let id = ui.push_id_ptr(&state.editor_context);
 
     state
         .editor_context
@@ -58,13 +50,13 @@ pub fn show(ui: &imgui::Ui, state: &mut MultiEditState) {
 
     let on_snap = state
         .editor_context
-        .push(AttributeFlag::EnableLinkCreationOnSnap);
+        .push_attribute_flag(AttributeFlags::EnableLinkCreationOnSnap);
     let detach = state
         .editor_context
-        .push(AttributeFlag::EnableLinkDetachWithDragClick);
+        .push_attribute_flag(AttributeFlags::EnableLinkDetachWithDragClick);
 
     let MultiEditState {
-        ref mut editor_context,
+        editor_context,
         nodes,
         links,
         id_gen,
@@ -101,24 +93,33 @@ pub fn show(ui: &imgui::Ui, state: &mut MultiEditState) {
             });
         }
 
-        for curr_node in nodes.iter_mut() {
-            editor.add_node(curr_node.id, |mut node| {
-                node.add_titlebar(|| {
+        // Iterate using indices to allow mutable borrow inside slider closure
+        for i in 0..nodes.len() {
+            let node_id = nodes[i].id;
+            let input_pin = nodes[i].input;
+            let output_pin = nodes[i].output;
+            let attr_id = nodes[i].attribute;
+
+            editor.add_node(node_id, |mut node_scope| {
+                node_scope.add_titlebar(|| {
                     ui.text("node");
                 });
 
-                node.add_input(curr_node.input, PinShape::QuadFilled, || {
+                node_scope.add_input(input_pin, PinShape::QuadFilled, || {
                     ui.text("input");
                 });
 
-                node.attribute(curr_node.attribute, || {
+                node_scope.add_static_attribute(attr_id, || {
                     ui.set_next_item_width(130.0);
-                    ui.slider_config("value", 0.0, 10.0)
-                        .display_format(format!("{:.2}", curr_node.value))
-                        .build(&mut curr_node.value);
+                    // Get mutable access only for the slider build call
+                    if let Some(node_mut) = nodes.get_mut(i) {
+                        ui.slider_config("value", 0.0, 10.0)
+                            .display_format(format!("{:.2}", node_mut.value))
+                            .build(&mut node_mut.value);
+                    }
                 });
 
-                node.add_output(curr_node.output, PinShape::CircleFilled, || {
+                node_scope.add_output(output_pin, PinShape::CircleFilled, || {
                     ui.text("output");
                 });
             });
@@ -137,10 +138,8 @@ pub fn show(ui: &imgui::Ui, state: &mut MultiEditState) {
         });
     }
 
-    if let Some(link) = outer_scope.get_dropped_link() {
-        state
-            .links
-            .swap_remove(state.links.iter().position(|e| e.id == link).unwrap());
+    if let Some(link_id) = outer_scope.get_destroyed_link() {
+        state.links.retain(|link| link.id != link_id);
     }
 
     on_snap.pop();
