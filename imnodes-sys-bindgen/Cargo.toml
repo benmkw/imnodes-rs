@@ -1,9 +1,9 @@
 [package]
 name = "imnodes-sys-bindgen"
-version = "0.5.0"
+version = "0.6.0"
 authors = ["Benedikt Mandelkow"]
 edition = "2024"
 
 [dependencies]
-bindgen = "0.71.1"
+bindgen = "0.72.1"
 imgui-sys = "0.12"

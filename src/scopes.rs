@@ -10,8 +10,8 @@ on the parent scope's struct to prevent calling methods from the parent scope wh
 */
 
 use crate::{
-    AttributeId, EditorContext, Hoverable, InputPinId, Link, LinkId, MiniMapLocation, NodeId,
-    OutputPinId, PinId, PinShape, sys,
+    AttributeFlags, AttributeId, ColorStyle, EditorContext, Hoverable, InputPinId, Link, LinkId,
+    MiniMapLocation, NodeId, OutputPinId, PinId, PinShape, StyleVar, sys,
 };
 
 /// Represents the scope outside the main node editor block.
@@ -38,7 +38,7 @@ impl OuterScope {
         id.is_start_of_link(self)
     }
 
-    /// Checks if the user dropped a link originating from the given pin ID without connecting it.
+    /// Checks if the user dropped a dragged link originating from this pin without connecting it.
     ///
     /// # Arguments
     /// * `id`: The pin ID from which the link might have been dropped.
@@ -54,9 +54,7 @@ impl OuterScope {
     #[doc(alias = "NumSelectedNodes")]
     #[must_use]
     pub fn num_selected_nodes(&self) -> u32 {
-        // Safety: C API call. Assumes editor context is valid.
         let num = unsafe { sys::imnodes_NumSelectedNodes() };
-        // Number can be 0, assertion removed.
         num.max(0) as u32
     }
 
@@ -64,9 +62,7 @@ impl OuterScope {
     #[doc(alias = "NumSelectedLinks")]
     #[must_use]
     pub fn num_selected_links(&self) -> u32 {
-        // Safety: C API call. Assumes editor context is valid.
         let num = unsafe { sys::imnodes_NumSelectedLinks() };
-        // Number can be 0, assertion removed.
         num.max(0) as u32
     }
 
@@ -79,8 +75,6 @@ impl OuterScope {
             return Vec::new();
         }
         let mut nodes: Vec<NodeId> = Vec::with_capacity(nr_nodes as usize);
-        // Safety: C API call. Writes up to `nr_nodes` IDs into the vector's buffer.
-        // `set_len` is safe because the memory is initialized by the C call.
         unsafe {
             sys::imnodes_GetSelectedNodes(nodes.as_mut_ptr().cast::<i32>());
             nodes.set_len(nr_nodes as usize);
@@ -97,8 +91,6 @@ impl OuterScope {
             return Vec::new();
         }
         let mut links: Vec<LinkId> = Vec::with_capacity(nr_links as usize);
-        // Safety: C API call. Writes up to `nr_links` IDs into the vector's buffer.
-        // `set_len` is safe because the memory is initialized by the C call.
         unsafe {
             sys::imnodes_GetSelectedLinks(links.as_mut_ptr().cast::<i32>());
             links.set_len(nr_links as usize);
@@ -117,18 +109,14 @@ impl OuterScope {
         let mut start_pin_id: i32 = -1;
         let mut end_node_id: i32 = -1;
         let mut end_pin_id: i32 = -1;
-        // Note: The bool pointer is const in the C++ definition, but the C binding expects *mut.
-        // We initialize it and assume imnodes won't write through this specific pointer.
         let mut created_from_snap: bool = false;
 
-        // Safety: C API call. All pointers are valid mutable references or a bool pointer.
         let is_created = unsafe {
             sys::imnodes_IsLinkCreated_IntPtr(
                 core::ptr::from_mut(&mut start_node_id),
                 core::ptr::from_mut(&mut start_pin_id),
                 core::ptr::from_mut(&mut end_node_id),
                 core::ptr::from_mut(&mut end_pin_id),
-                // Casting *mut bool is necessary due to bindgen's C interpretation.
                 core::ptr::from_mut::<bool>(&mut created_from_snap).cast(),
             )
         };
@@ -142,7 +130,6 @@ impl OuterScope {
             Some(Link {
                 start_node: NodeId { id: start_node_id },
                 end_node: NodeId { id: end_node_id },
-                // We assume the start is always an output and the end is always an input.
                 start_pin: OutputPinId { id: start_pin_id },
                 end_pin: InputPinId { id: end_pin_id },
                 created_from_snap,
@@ -159,7 +146,6 @@ impl OuterScope {
     #[must_use]
     pub fn get_destroyed_link(&self) -> Option<LinkId> {
         let mut id: i32 = -1;
-        // Safety: C API call. `id` is potentially written to.
         if unsafe { sys::imnodes_IsLinkDestroyed(core::ptr::from_mut(&mut id)) } && id >= 0 {
             Some(LinkId { id })
         } else {
@@ -172,7 +158,6 @@ impl OuterScope {
     #[must_use]
     pub fn get_hovered_pin(&self) -> Option<PinId> {
         let mut id: i32 = -1;
-        // Safety: C API call. `id` is potentially written to.
         let ok = unsafe { sys::imnodes_IsPinHovered(core::ptr::from_mut(&mut id)) };
         if ok && id >= 0 {
             Some(PinId { id })
@@ -186,7 +171,6 @@ impl OuterScope {
     #[must_use]
     pub fn get_hovered_link(&self) -> Option<LinkId> {
         let mut id: i32 = -1;
-        // Safety: C API call. `id` is potentially written to.
         let ok = unsafe { sys::imnodes_IsLinkHovered(core::ptr::from_mut(&mut id)) };
         if ok && id >= 0 {
             Some(LinkId { id })
@@ -200,7 +184,6 @@ impl OuterScope {
     #[must_use]
     pub fn get_active_attribute(&self) -> Option<AttributeId> {
         let mut id: i32 = -1;
-        // Safety: C API call. `id` is potentially written to.
         let ok = unsafe { sys::imnodes_IsAnyAttributeActive(core::ptr::from_mut(&mut id)) };
         if ok && id >= 0 {
             Some(AttributeId { id })
@@ -214,7 +197,6 @@ impl OuterScope {
     #[must_use]
     pub fn from_where_link_started(&self) -> Option<PinId> {
         let mut id: i32 = -1;
-        // Safety: C API call. `id` is potentially written to.
         let ok = unsafe { sys::imnodes_IsLinkStarted(core::ptr::from_mut(&mut id)) };
         if ok && id >= 0 {
             Some(PinId { id })
@@ -231,7 +213,6 @@ impl OuterScope {
     #[must_use]
     pub fn from_where_link_dropped(&self, including_detached_links: bool) -> Option<PinId> {
         let mut id: i32 = -1;
-        // Safety: C API call. `id` is potentially written to.
         let ok = unsafe {
             sys::imnodes_IsLinkDropped(core::ptr::from_mut(&mut id), including_detached_links)
         };
@@ -249,18 +230,56 @@ impl OuterScope {
 /// The function returns an [`OuterScope`] which can be used *after* this function returns
 /// to query events like link creation or destruction.
 ///
-/// Requires the [`EditorContext`] to be set via [`EditorContext::set_as_current_editor`] beforehand.
+/// This function automatically sets the provided context as the current editor context
+/// before beginning the editor UI.
+///
+/// ```no_run
+/// # use imnodes::{EditorContext, editor};
+/// # let mut context: EditorContext = unimplemented!();
+/// // No need to call set_as_current_editor() - editor() handles it!
+/// let outer = editor(&mut context, |mut scope| {
+///     // add nodes, links, etc.
+/// });
+/// ```
 #[doc(alias = "BeginNodeEditor", alias = "EndNodeEditor")]
-pub fn editor<F: FnOnce(EditorScope)>(context: &mut EditorContext, f: F) -> OuterScope {
-    // Ensure the context is set (though the user should ideally do this explicitly)
-    let _ = context.set_as_current_editor();
-
-    // Safety: Begins the editor scope. Must be paired with EndNodeEditor.
+pub fn editor<F: FnOnce(EditorScope)>(context: &EditorContext<'_>, f: F) -> OuterScope {
+    // Set the global current context via FFI using the provided `EditorContext`.
+    // We inline the unsafe FFI call here using the crate-visible `raw` pointer.
+    // Public APIs that mutate the context still require `&mut EditorContext`.
+    unsafe { sys::imnodes_EditorContextSet(context.raw) };
     unsafe { sys::imnodes_BeginNodeEditor() };
     f(EditorScope {});
-    // Safety: Ends the editor scope.
     unsafe { sys::imnodes_EndNodeEditor() };
     OuterScope {}
+}
+
+/// Descriptor for configuring the minimap.
+#[derive(Debug, Clone)]
+pub struct MiniMapDesc {
+    /// The size of the minimap relative to the editor canvas (e.g., 0.2 for 20%).
+    pub size_fraction: f32,
+    /// The corner where the minimap should be placed.
+    pub location: MiniMapLocation,
+}
+
+impl Default for MiniMapDesc {
+    fn default() -> Self {
+        Self {
+            size_fraction: 0.2,
+            location: MiniMapLocation::TopLeft,
+        }
+    }
+}
+
+/// Descriptor for pushing multiple style modifications.
+#[derive(Debug, Clone, Default)]
+pub struct StyleDesc<'a> {
+    /// Style variables to push.
+    pub vars: &'a [StyleVar],
+    /// Colors to push.
+    pub colors: &'a [(ColorStyle, imgui::ImColor32)],
+    /// Attribute flags to push.
+    pub flags: &'a [AttributeFlags],
 }
 
 /// Represents the scope within the main node editor block (`imnodes::editor`).
@@ -273,20 +292,18 @@ impl EditorScope {
     /// Must be called just before the end of the [`editor`] closure.
     ///
     /// # Arguments
-    /// * `size_fraction`: The size of the minimap relative to the editor canvas (e.g., 0.2 for 20%).
-    /// * `location`: The corner where the minimap should be placed.
+    /// * `desc`: A [`MiniMapDesc`] struct specifying the minimap's configuration.
     #[doc(alias = "MiniMap")]
-    pub fn add_mini_map(&mut self, size_fraction: f32, location: MiniMapLocation) {
+    pub fn add_mini_map(&mut self, desc: &MiniMapDesc) {
         // The C API allows a callback, but wrapping it safely with Rust closures
         // and void pointers is complex. We omit it for now.
         let node_hovering_callback = None;
         let node_hovering_callback_data = core::ptr::null_mut::<core::ffi::c_void>();
 
-        // Safety: C API call within the editor scope.
         unsafe {
             sys::imnodes_MiniMap(
-                size_fraction,
-                location as i32,
+                desc.size_fraction,
+                desc.location as i32,
                 node_hovering_callback,
                 node_hovering_callback_data,
             );
@@ -303,10 +320,8 @@ impl EditorScope {
     /// * `f`: A closure that defines the content of the node.
     #[doc(alias = "BeginNode", alias = "EndNode")]
     pub fn add_node<F: FnOnce(NodeScope)>(&mut self, id: NodeId, f: F) {
-        // Safety: Begins a node scope. Must be paired with EndNode.
-        unsafe { sys::imnodes_BeginNode(id.into()) }
+        unsafe { sys::imnodes_BeginNode(id.id) }
         f(NodeScope {});
-        // Safety: Ends the node scope.
         unsafe {
             sys::imnodes_EndNode();
         }
@@ -323,9 +338,7 @@ impl EditorScope {
     /// * `output_pin_id`: The ID of the output pin (usually on the source node).
     #[doc(alias = "Link")]
     pub fn add_link(&mut self, id: LinkId, input_pin_id: InputPinId, output_pin_id: OutputPinId) {
-        // Safety: C API call within the editor scope. Assumes pin IDs are valid.
-        // The C API takes (link_id, start_pin, end_pin). We assume start=output, end=input based on common usage.
-        unsafe { sys::imnodes_Link(id.into(), output_pin_id.into(), input_pin_id.into()) }
+        unsafe { sys::imnodes_Link(id.id, output_pin_id.id, input_pin_id.id) }
     }
 
     /// Checks if any attribute's UI is currently active (being interacted with).
@@ -336,7 +349,6 @@ impl EditorScope {
     #[must_use]
     pub fn get_active_attribute(&self) -> Option<AttributeId> {
         let mut id: i32 = -1;
-        // Safety: C API call within the editor scope. `id` is potentially written to.
         let ok = unsafe { sys::imnodes_IsAnyAttributeActive(core::ptr::from_mut(&mut id)) };
         if ok && id >= 0 {
             Some(AttributeId { id })
@@ -350,8 +362,148 @@ impl EditorScope {
     #[doc(alias = "IsEditorHovered")]
     #[must_use]
     pub fn is_hovered(&self) -> bool {
-        // Safety: C API call within the editor scope.
         unsafe { sys::imnodes_IsEditorHovered() }
+    }
+
+    /// Pushes multiple style modifications onto the stack for the duration of the closure.
+    ///
+    /// # Arguments
+    /// * `desc`: A [`StyleDesc`] struct describing the styles to push.
+    /// * `f`: The closure to execute with the applied styles.
+    pub fn push_style<F: FnOnce(&mut Self)>(&mut self, desc: &StyleDesc<'_>, f: F) {
+        unsafe {
+            for flag in desc.flags {
+                sys::imnodes_PushAttributeFlag(*flag as i32);
+            }
+            for var in desc.vars {
+                match var {
+                    StyleVar::GridSpacing(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_GridSpacing as i32,
+                        *v,
+                    ),
+                    StyleVar::NodeCornerRounding(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_NodeCornerRounding as i32,
+                        *v,
+                    ),
+                    StyleVar::NodePadding(v) => sys::imnodes_PushStyleVar_Vec2(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_NodePadding as i32,
+                        sys::ImVec2_c { x: v[0], y: v[1] },
+                    ),
+                    StyleVar::NodeBorderThickness(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_NodeBorderThickness as i32,
+                        *v,
+                    ),
+                    StyleVar::LinkThickness(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_LinkThickness as i32,
+                        *v,
+                    ),
+                    StyleVar::LinkLineSegmentsPerLength(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_LinkLineSegmentsPerLength as i32,
+                        *v,
+                    ),
+                    StyleVar::LinkHoverDistance(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_LinkHoverDistance as i32,
+                        *v,
+                    ),
+                    StyleVar::PinCircleRadius(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinCircleRadius as i32,
+                        *v,
+                    ),
+                    StyleVar::PinQuadSideLength(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinQuadSideLength as i32,
+                        *v,
+                    ),
+                    StyleVar::PinTriangleSideLength(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinTriangleSideLength as i32,
+                        *v,
+                    ),
+                    StyleVar::PinLineThickness(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinLineThickness as i32,
+                        *v,
+                    ),
+                    StyleVar::PinHoverRadius(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinHoverRadius as i32,
+                        *v,
+                    ),
+                    StyleVar::PinOffset(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinOffset as i32,
+                        *v,
+                    ),
+                    StyleVar::MiniMapPadding(v) => sys::imnodes_PushStyleVar_Vec2(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_MiniMapPadding as i32,
+                        sys::ImVec2_c { x: v[0], y: v[1] },
+                    ),
+                    StyleVar::MiniMapOffset(v) => sys::imnodes_PushStyleVar_Vec2(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_MiniMapOffset as i32,
+                        sys::ImVec2_c { x: v[0], y: v[1] },
+                    ),
+                }
+            }
+            for (style, color) in desc.colors {
+                let c: imgui::ImColor32 = *color;
+                sys::imnodes_PushColorStyle(*style as i32, c.into());
+            }
+        }
+
+        f(self);
+
+        unsafe {
+            for _ in 0..desc.colors.len() {
+                sys::imnodes_PopColorStyle();
+            }
+            if !desc.vars.is_empty() {
+                sys::imnodes_PopStyleVar(desc.vars.len() as i32);
+            }
+            for _ in 0..desc.flags.len() {
+                sys::imnodes_PopAttributeFlag();
+            }
+        }
+    }
+}
+
+/// Descriptor for adding an input attribute.
+#[derive(Debug, Clone)]
+pub struct InputAttributeDesc {
+    /// Unique identifier for the input pin.
+    pub id: InputPinId,
+    /// Visual shape of the pin.
+    pub shape: PinShape,
+}
+
+impl InputAttributeDesc {
+    /// Creates a new descriptor.
+    pub fn new(id: InputPinId, shape: PinShape) -> Self {
+        Self { id, shape }
+    }
+}
+
+/// Descriptor for adding an output attribute.
+#[derive(Debug, Clone)]
+pub struct OutputAttributeDesc {
+    /// Unique identifier for the output pin.
+    pub id: OutputPinId,
+    /// Visual shape of the pin.
+    pub shape: PinShape,
+}
+
+impl OutputAttributeDesc {
+    /// Creates a new descriptor.
+    pub fn new(id: OutputPinId, shape: PinShape) -> Self {
+        Self { id, shape }
+    }
+}
+
+/// Descriptor for adding a static attribute.
+#[derive(Debug, Clone)]
+pub struct StaticAttributeDesc {
+    /// Unique identifier for the attribute.
+    pub id: AttributeId,
+}
+
+impl StaticAttributeDesc {
+    /// Creates a new descriptor.
+    pub fn new(id: AttributeId) -> Self {
+        Self { id }
     }
 }
 
@@ -367,62 +519,151 @@ impl NodeScope {
     /// on the `NodeScope`.
     #[doc(alias = "BeginNodeTitleBar", alias = "EndNodeTitleBar")]
     pub fn add_titlebar<F: FnOnce()>(&mut self, f: F) {
-        // Safety: Begins the title bar scope within a node. Must be paired with EndNodeTitleBar.
         unsafe { sys::imnodes_BeginNodeTitleBar() }
         f();
-        // Safety: Ends the title bar scope.
         unsafe { sys::imnodes_EndNodeTitleBar() }
     }
 
     /// Adds an input pin (rendered on the left side) and its associated attribute UI to the node.
     ///
     /// Place ImGui UI elements for the attribute within the closure `f`.
+    /// Returns `true` if the attribute's UI is currently active (e.g. being clicked/dragged).
     ///
     /// # Arguments
-    /// * `id`: A unique identifier for this input pin.
-    /// * `shape`: The visual shape of the pin.
+    /// * `desc`: Descriptor containing the ID and shape of the input pin.
     /// * `f`: A closure that defines the UI content associated with this pin.
     #[doc(alias = "BeginInputAttribute", alias = "EndInputAttribute")]
-    pub fn add_input<F: FnOnce()>(&mut self, id: InputPinId, shape: PinShape, f: F) {
-        // Safety: Begins an input attribute scope. Must be paired with EndInputAttribute.
-        unsafe { sys::imnodes_BeginInputAttribute(id.into(), shape as i32) };
+    pub fn add_input<F: FnOnce()>(&mut self, desc: &InputAttributeDesc, f: F) -> bool {
+        unsafe { sys::imnodes_BeginInputAttribute(desc.id.id, desc.shape as i32) };
         f();
-        // Safety: Ends the input attribute scope.
         unsafe { sys::imnodes_EndInputAttribute() };
+        unsafe { sys::imnodes_IsAttributeActive() }
     }
 
     /// Adds an output pin (rendered on the right side) and its associated attribute UI to the node.
     ///
     /// Place ImGui UI elements for the attribute within the closure `f`.
+    /// Returns `true` if the attribute's UI is currently active (e.g. being clicked/dragged).
     ///
     /// # Arguments
-    /// * `id`: A unique identifier for this output pin.
-    /// * `shape`: The visual shape of the pin.
+    /// * `desc`: Descriptor containing the ID and shape of the output pin.
     /// * `f`: A closure that defines the UI content associated with this pin.
     #[doc(alias = "BeginOutputAttribute", alias = "EndOutputAttribute")]
-    pub fn add_output<F: FnOnce()>(&mut self, id: OutputPinId, shape: PinShape, f: F) {
-        // Safety: Begins an output attribute scope. Must be paired with EndOutputAttribute.
-        unsafe { sys::imnodes_BeginOutputAttribute(id.into(), shape as i32) };
+    pub fn add_output<F: FnOnce()>(&mut self, desc: &OutputAttributeDesc, f: F) -> bool {
+        unsafe { sys::imnodes_BeginOutputAttribute(desc.id.id, desc.shape as i32) };
         f();
-        // Safety: Ends the output attribute scope.
         unsafe { sys::imnodes_EndOutputAttribute() };
+        unsafe { sys::imnodes_IsAttributeActive() }
     }
 
     /// Adds a static attribute (UI element without a pin) to the node.
     ///
     /// Static attributes cannot be linked. Place ImGui UI elements for the attribute within the closure `f`.
-    /// Use [`crate::helpers::is_last_attribute_active()`] or [`EditorScope::get_active_attribute()`]
-    /// to check for interaction with the UI defined in `f`.
+    /// Returns `true` if the attribute's UI is currently active (e.g. being clicked/dragged).
     ///
     /// # Arguments
-    /// * `id`: A unique identifier for this static attribute.
+    /// * `desc`: Descriptor containing the ID of the attribute.
     /// * `f`: A closure that defines the UI content of the attribute.
     #[doc(alias = "BeginStaticAttribute", alias = "EndStaticAttribute")]
-    pub fn add_static_attribute<F: FnOnce()>(&mut self, id: AttributeId, f: F) {
-        // Safety: Begins a static attribute scope. Must be paired with EndStaticAttribute.
-        unsafe { sys::imnodes_BeginStaticAttribute(id.into()) };
+    pub fn add_static_attribute<F: FnOnce()>(&mut self, desc: &StaticAttributeDesc, f: F) -> bool {
+        unsafe { sys::imnodes_BeginStaticAttribute(desc.id.id) };
         f();
-        // Safety: Ends the static attribute scope.
         unsafe { sys::imnodes_EndStaticAttribute() };
+        unsafe { sys::imnodes_IsAttributeActive() }
+    }
+
+    /// Pushes multiple style modifications onto the stack for the duration of the closure.
+    ///
+    /// # Arguments
+    /// * `desc`: A [`StyleDesc`] struct describing the styles to push.
+    /// * `f`: The closure to execute with the applied styles.
+    pub fn push_style<F: FnOnce(&mut Self)>(&mut self, desc: &StyleDesc<'_>, f: F) {
+        unsafe {
+            for flag in desc.flags {
+                sys::imnodes_PushAttributeFlag(*flag as i32);
+            }
+            for var in desc.vars {
+                match var {
+                    StyleVar::GridSpacing(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_GridSpacing as i32,
+                        *v,
+                    ),
+                    StyleVar::NodeCornerRounding(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_NodeCornerRounding as i32,
+                        *v,
+                    ),
+                    StyleVar::NodePadding(v) => sys::imnodes_PushStyleVar_Vec2(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_NodePadding as i32,
+                        sys::ImVec2_c { x: v[0], y: v[1] },
+                    ),
+                    StyleVar::NodeBorderThickness(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_NodeBorderThickness as i32,
+                        *v,
+                    ),
+                    StyleVar::LinkThickness(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_LinkThickness as i32,
+                        *v,
+                    ),
+                    StyleVar::LinkLineSegmentsPerLength(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_LinkLineSegmentsPerLength as i32,
+                        *v,
+                    ),
+                    StyleVar::LinkHoverDistance(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_LinkHoverDistance as i32,
+                        *v,
+                    ),
+                    StyleVar::PinCircleRadius(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinCircleRadius as i32,
+                        *v,
+                    ),
+                    StyleVar::PinQuadSideLength(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinQuadSideLength as i32,
+                        *v,
+                    ),
+                    StyleVar::PinTriangleSideLength(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinTriangleSideLength as i32,
+                        *v,
+                    ),
+                    StyleVar::PinLineThickness(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinLineThickness as i32,
+                        *v,
+                    ),
+                    StyleVar::PinHoverRadius(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinHoverRadius as i32,
+                        *v,
+                    ),
+                    StyleVar::PinOffset(v) => sys::imnodes_PushStyleVar_Float(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_PinOffset as i32,
+                        *v,
+                    ),
+                    StyleVar::MiniMapPadding(v) => sys::imnodes_PushStyleVar_Vec2(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_MiniMapPadding as i32,
+                        sys::ImVec2_c { x: v[0], y: v[1] },
+                    ),
+                    StyleVar::MiniMapOffset(v) => sys::imnodes_PushStyleVar_Vec2(
+                        sys::ImNodesStyleVar__ImNodesStyleVar_MiniMapOffset as i32,
+                        sys::ImVec2_c { x: v[0], y: v[1] },
+                    ),
+                }
+            }
+            for (style, color) in desc.colors {
+                let c: imgui::ImColor32 = *color;
+                sys::imnodes_PushColorStyle(*style as i32, c.into());
+            }
+        }
+
+        f(self);
+
+        unsafe {
+            for _ in 0..desc.colors.len() {
+                sys::imnodes_PopColorStyle();
+            }
+            if !desc.vars.is_empty() {
+                sys::imnodes_PopStyleVar(desc.vars.len() as i32);
+            }
+            for _ in 0..desc.flags.len() {
+                sys::imnodes_PopAttributeFlag();
+            }
+        }
     }
 }

@@ -1,335 +1,395 @@
+use imgui::Key;
 use imnodes::{
-    Context, CoordinateSystem, EditorContext, IdentifierGenerator, InputPinId, LinkId, NodeId,
-    OutputPinId, PinShape, editor,
+    AttributeId, Context, EditorContext, EditorContextDesc, IdentifierGenerator,
+    InputAttributeDesc, InputPinId, LinkId, NodeId, OutputAttributeDesc, OutputPinId, PinShape,
+    StaticAttributeDesc, editor,
 };
+use std::fs::File;
+use std::io::{Read, Write};
+use std::mem;
+use std::slice;
 
-// WARNING! this file is not finished yet/ save load does not work yet
-
-#[derive(Clone, Debug)]
-struct AppNode {
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+struct Node {
     id: NodeId,
     input: InputPinId,
     output: OutputPinId,
+    attribute: AttributeId,
+    value: f32,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct AppLink {
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+struct Link {
     id: LinkId,
-    start_pin: OutputPinId,
-    end_pin: InputPinId,
+    start_attr: OutputPinId,
+    end_attr: InputPinId,
 }
 
 #[derive(Debug)]
-pub struct SaveLoadState {
-    pub editor_context: EditorContext,
+pub struct SaveLoadState<'a> {
+    pub editor_context: EditorContext<'a>,
     id_gen: IdentifierGenerator,
-    nodes: Vec<AppNode>,
-    links: Vec<AppLink>,
-    saved_state_string: Option<String>,
-    status: String,
-    last_selected_nodes: Vec<NodeId>,
-    last_selected_links: Vec<LinkId>,
-    add_node_at: Option<[f32; 2]>,
+    nodes: Vec<Node>,
+    links: Vec<Link>,
+    file_content: String,
+    positions_initialized: bool,
 }
 
-impl SaveLoadState {
-    pub fn new(context: &Context) -> Self {
-        let editor_context = context.create_editor();
-        let id_gen = editor_context.new_identifier_generator();
+impl<'a> SaveLoadState<'a> {
+    pub fn new(context: &'a Context) -> Self {
+        let editor_context = context.create_editor(&EditorContextDesc::default());
+        let mut id_gen = editor_context.new_identifier_generator();
+
+        // Create demo nodes
+        let node1 = Node {
+            id: id_gen.next_node(),
+            input: id_gen.next_input_pin(),
+            output: id_gen.next_output_pin(),
+            attribute: id_gen.next_attribute(),
+            value: 2.5,
+        };
+        let node2 = Node {
+            id: id_gen.next_node(),
+            input: id_gen.next_input_pin(),
+            output: id_gen.next_output_pin(),
+            attribute: id_gen.next_attribute(),
+            value: 7.3,
+        };
+        let node3 = Node {
+            id: id_gen.next_node(),
+            input: id_gen.next_input_pin(),
+            output: id_gen.next_output_pin(),
+            attribute: id_gen.next_attribute(),
+            value: 4.1,
+        };
+
+        // Create demo links
+        let link1 = Link {
+            id: id_gen.next_link(),
+            start_attr: node1.output,
+            end_attr: node2.input,
+        };
+        let link2 = Link {
+            id: id_gen.next_link(),
+            start_attr: node1.output,
+            end_attr: node3.input,
+        };
+
         SaveLoadState {
             editor_context,
             id_gen,
-            nodes: vec![],
-            links: vec![],
-            saved_state_string: None,
-            status: "Ready".to_string(),
-            last_selected_nodes: vec![],
-            last_selected_links: vec![],
-            add_node_at: None,
+            nodes: vec![node1, node2, node3],
+            links: vec![link1, link2],
+            file_content: String::new(),
+            positions_initialized: false,
         }
     }
 
-    // Helper function to add a node
-    fn add_node(&mut self, position: Option<[f32; 2]>) {
-        let node_id = self.id_gen.next_node();
-        let new_node = AppNode {
-            id: node_id,
-            input: self.id_gen.next_input_pin(),
-            output: self.id_gen.next_output_pin(),
-        };
+    fn save(&mut self) {
+        // Save the internal imnodes state
+        let _ = self
+            .editor_context
+            .save_current_editor_state_to_file("save_load.ini");
 
-        // Set position *before* pushing the node, so it's placed correctly on the first frame
-        if let Some(pos) = position {
-            let _ = node_id.set_position(pos[0], pos[1], CoordinateSystem::ScreenSpace);
-        } else {
-            // Place the new node near the center of the screen, adjusted by panning.
-            let pan = self.editor_context.get_panning();
-            // Estimate center - requires access to window size, which we don't have here easily.
-            // Place relative to pan for now. A better approach might involve passing window size.
-            let node_x = pan.x + 100.0; // Offset from top-left visible corner
-            let node_y = pan.y + 100.0;
-            let _ = node_id.set_position(node_x, node_y, CoordinateSystem::GridSpace);
+        // Dump our editor state as bytes into a file
+        if let Ok(mut file) = File::create("save_load.bytes") {
+            let num_nodes = self.nodes.len();
+            let _ = file.write_all(&num_nodes.to_ne_bytes());
+
+            // Safety: Writing raw struct bytes. Structs are #[repr(C)] and contain only primitives/repr(C) fields.
+            let nodes_bytes = unsafe {
+                slice::from_raw_parts(
+                    self.nodes.as_ptr() as *const u8,
+                    num_nodes * mem::size_of::<Node>(),
+                )
+            };
+            let _ = file.write_all(nodes_bytes);
+
+            let num_links = self.links.len();
+            let _ = file.write_all(&num_links.to_ne_bytes());
+
+            let links_bytes = unsafe {
+                slice::from_raw_parts(
+                    self.links.as_ptr() as *const u8,
+                    num_links * mem::size_of::<Link>(),
+                )
+            };
+            let _ = file.write_all(links_bytes);
         }
 
-        self.nodes.push(new_node);
-        self.status = format!("Added Node {node_id:?}");
+        // Update file content display
+        self.update_file_content_display();
+    }
+
+    fn load(&mut self) {
+        // Load the internal imnodes state
+        let _ = self
+            .editor_context
+            .load_current_editor_state_from_file("save_load.ini");
+
+        // Load our editor state into memory
+        if let Ok(mut file) = File::open("save_load.bytes") {
+            let mut usize_buf = [0u8; mem::size_of::<usize>()];
+
+            // Read nodes
+            if file.read_exact(&mut usize_buf).is_ok() {
+                let num_nodes = usize::from_ne_bytes(usize_buf);
+                // We need placeholders to resize the vector.
+                // Using new IDs is safe because they will be overwritten by read_exact.
+                // It is a bit wasteful of the *current* id_gen, but that one is about to be reset anyway.
+                if self.nodes.len() < num_nodes {
+                    self.nodes.reserve(num_nodes - self.nodes.len());
+                }
+                // We can't use resize because we don't have a cheap Clone/Copy default constructor for NodeId etc
+                // without using the generator.
+                // Instead, we clear and push new placeholder nodes.
+                self.nodes.clear();
+                for _ in 0..num_nodes {
+                    self.nodes.push(Node {
+                        id: self.id_gen.next_node(),
+                        input: self.id_gen.next_input_pin(),
+                        output: self.id_gen.next_output_pin(),
+                        attribute: self.id_gen.next_attribute(),
+                        value: 0.0,
+                    });
+                }
+
+                let nodes_bytes = unsafe {
+                    slice::from_raw_parts_mut(
+                        self.nodes.as_mut_ptr() as *mut u8,
+                        num_nodes * mem::size_of::<Node>(),
+                    )
+                };
+                let _ = file.read_exact(nodes_bytes);
+            }
+
+            // Read links
+            if file.read_exact(&mut usize_buf).is_ok() {
+                let num_links = usize::from_ne_bytes(usize_buf);
+                self.links.clear();
+                // Create placeholders (values don't matter, will be overwritten)
+                // We reuse one valid ID set or generate new ones.
+                // To avoid exhausting generator (though unlikely for demo), we can just panic if fails or whatever.
+                // But simplified:
+                let dummy_node = self.nodes.first().cloned().unwrap_or(Node {
+                    id: self.id_gen.next_node(),
+                    input: self.id_gen.next_input_pin(),
+                    output: self.id_gen.next_output_pin(),
+                    attribute: self.id_gen.next_attribute(),
+                    value: 0.0,
+                });
+
+                for _ in 0..num_links {
+                    self.links.push(Link {
+                        id: self.id_gen.next_link(),
+                        start_attr: dummy_node.output,
+                        end_attr: dummy_node.input,
+                    });
+                }
+
+                let links_bytes = unsafe {
+                    slice::from_raw_parts_mut(
+                        self.links.as_mut_ptr() as *mut u8,
+                        num_links * mem::size_of::<Link>(),
+                    )
+                };
+                let _ = file.read_exact(links_bytes);
+            }
+
+            // Reconstruct IdentifierGenerator state
+            // We start with a fresh generator (0,0,0) and register all loaded IDs.
+            self.id_gen = self.editor_context.new_identifier_generator();
+
+            for node in &self.nodes {
+                self.id_gen.register_node_id(&node.id);
+                self.id_gen.register_input_pin_id(&node.input);
+                self.id_gen.register_output_pin_id(&node.output);
+                self.id_gen.register_attribute_id(&node.attribute);
+            }
+            for link in &self.links {
+                self.id_gen.register_link_id(&link.id);
+            }
+        }
+
+        // Update file content display
+        self.update_file_content_display();
+    }
+
+    fn update_file_content_display(&mut self) {
+        let mut content = String::from("---\x20save_load.ini---\n");
+        if let Ok(ini_str) = std::fs::read_to_string("save_load.ini") {
+            content.push_str(&ini_str);
+        } else {
+            content.push_str("(not found)\n");
+        }
+
+        content.push_str("\n--- save_load.bytes (hexdump partial) ---\n");
+        if let Ok(bytes) = std::fs::read("save_load.bytes") {
+            for (i, byte) in bytes.iter().take(256).enumerate() {
+                if i > 0 && i % 16 == 0 {
+                    content.push('\n');
+                }
+                content.push_str(&format!("{:02X} ", byte));
+            }
+            if bytes.len() > 256 {
+                content.push_str("\n... (truncated)");
+            }
+        } else {
+            content.push_str("(not found)");
+        }
+
+        self.file_content = content;
     }
 }
 
-pub fn show(ui: &imgui::Ui, state: &mut SaveLoadState) {
-    let editor_id = ui.push_id_ptr(&state.editor_context);
+pub fn show<'a>(ui: &imgui::Ui, state: &mut SaveLoadState<'a>) {
+    ui.text_colored([0.3, 0.8, 0.3, 1.0], "💾 Persistent Node Editor");
+    ui.separator();
+    ui.text("Press 'A' to add a node at your cursor position");
+    ui.text("Drag nodes around, connect them, then close and reopen!");
+    ui.spacing();
+
+    if ui.button("💾 Save State") {
+        state.save();
+    }
+    ui.same_line();
+    if ui.button("📂 Load State") {
+        state.load();
+    }
+    ui.same_line();
+    ui.text_disabled(format!(
+        "({} nodes, {} links)",
+        state.nodes.len(),
+        state.links.len()
+    ));
+
+    if !state.file_content.is_empty() && imgui::CollapsingHeader::new("File Content").build(ui) {
+        ui.text_wrapped(&state.file_content);
+    }
+
+    // Interaction / Debug Panel to cover more APIs
+    if imgui::CollapsingHeader::new("Interaction API Coverage").build(ui) {
+        let selected_nodes = state.editor_context.get_selected_nodes();
+        ui.text(format!("Selected Nodes: {:?}", selected_nodes));
+
+        if let Some(first_id) = selected_nodes.first() {
+            let id = *first_id;
+            if ui.button("Move Editor to Selected") {
+                let _ = id.move_editor_to();
+            }
+            ui.same_line();
+            if ui.button("Snap Selected to Grid") {
+                let _ = id.snap_to_grid();
+            }
+            ui.text(format!("Dimensions: {:?}", id.get_dimensions()));
+        } else {
+            ui.text_disabled("(Select a node to test API)");
+        }
+
+        if ui.button("Clear Selection") {
+            state.editor_context.clear_node_selection();
+            state.editor_context.clear_link_selection();
+        }
+        ui.same_line();
+        if ui.button("Reset Panning") {
+            state.editor_context.reset_panning([0.0, 0.0]);
+        }
+    }
+
     let _ = state.editor_context.set_as_current_editor();
 
-    if ui.button("Add Node") {
-        state.add_node_at = Some([-1.0, -1.0]); // Sentinel value
-    }
-    ui.same_line();
-    if ui.button("Remove Selected Nodes") {
-        if !state.last_selected_nodes.is_empty() {
-            let mut removed_count = 0;
-            let nodes_to_remove = state.last_selected_nodes.clone();
-            state.nodes.retain(|node| {
-                if nodes_to_remove.contains(&node.id) {
-                    state
-                        .links
-                        .retain(|link| node.input != link.end_pin && node.output != link.start_pin);
-                    removed_count += 1;
-                    false
-                } else {
-                    true
-                }
+    let outer_scope = editor(&state.editor_context, |mut editor_scope| {
+        // Set initial positions for demo nodes (only once)
+        if !state.positions_initialized && state.nodes.len() >= 3 {
+            let _ = state.nodes[0].id.set_position(
+                100.0,
+                100.0,
+                imnodes::CoordinateSystem::EditorSpace,
+            );
+            let _ =
+                state.nodes[1]
+                    .id
+                    .set_position(350.0, 80.0, imnodes::CoordinateSystem::EditorSpace);
+            let _ = state.nodes[2].id.set_position(
+                350.0,
+                220.0,
+                imnodes::CoordinateSystem::EditorSpace,
+            );
+            state.positions_initialized = true;
+        }
+
+        // Handle 'A' key to add node
+        if editor_scope.is_hovered() && ui.is_key_released(Key::A) {
+            let node_id = state.id_gen.next_node();
+            let _ = node_id.set_position(
+                ui.io().mouse_pos[0],
+                ui.io().mouse_pos[1],
+                imnodes::CoordinateSystem::ScreenSpace,
+            );
+            state.nodes.push(Node {
+                id: node_id,
+                input: state.id_gen.next_input_pin(),
+                output: state.id_gen.next_output_pin(),
+                attribute: state.id_gen.next_attribute(),
+                value: 0.0,
             });
-            state.status = format!("Removed {removed_count} node(s)");
-            state.editor_context.clear_node_selection();
-            state.last_selected_nodes.clear();
-        } else {
-            state.status = "No nodes selected to remove".to_string();
-        }
-    }
-    ui.same_line();
-    ui.text("or press \"A\" / right-click");
-
-    ui.separator();
-
-    ui.text("Save/Load:");
-    if ui.button("Save to String") {
-        match state.editor_context.save_current_editor_state_to_string() {
-            Some(saved_str) => {
-                state.saved_state_string = Some(saved_str);
-                state.status = "Saved state to internal string".to_string();
-            }
-            None => {
-                state.status = "Failed to save state to string".to_string();
-            }
-        }
-    }
-    ui.same_line();
-    if ui.button("Load from String") {
-        if let Some(saved_str) = &state.saved_state_string {
-            // Load the imnodes internal state
-            state
-                .editor_context
-                .load_current_editor_state_from_string(saved_str);
-            state.last_selected_nodes.clear();
-            state.last_selected_links.clear();
-            state.status =
-                "Loaded imnodes state from string. App state assumed to match.".to_string();
-        } else {
-            state.status = "No saved string state to load".to_string();
-        }
-    }
-    // ui.same_line();
-    // if ui.button("Save to File") {
-    //     match state
-    //         .editor_context
-    //         .save_current_editor_state_to_file("save_load_state.ini")
-    //     {
-    //         Ok(_) => state.status = "Saved state to save_load_state.ini".to_string(),
-    //         Err(e) => state.status = format!("Error saving to file: {}", e),
-    //     }
-    // }
-    // ui.same_line();
-    // if ui.button("Load from File") {
-    //     match state
-    //         .editor_context
-    //         .load_current_editor_state_from_file("save_load_state.ini")
-    //     {
-    //         Ok(_) => {
-    //             state.last_selected_nodes.clear();
-    //             state.last_selected_links.clear();
-    //             state.status =
-    //                 "Loaded imnodes state from file. App state assumed to match.".to_string();
-    //         }
-    //         Err(e) => state.status = format!("Error loading from file: {}", e),
-    //     }
-    // }
-
-    ui.separator();
-
-    let current_panning = state.editor_context.get_panning();
-    ui.text(format!(
-        "Current Pan: {:.2}, {:.2}",
-        current_panning.x, current_panning.y
-    ));
-    ui.same_line();
-    if ui.button("Reset Pan") {
-        state
-            .editor_context
-            .reset_panning(imnodes::ImVec2 { x: 0.0, y: 0.0 });
-        state.status = "Panning reset".to_string();
-    }
-
-    ui.text(format!(
-        "Selected Nodes: {}",
-        state.last_selected_nodes.len()
-    ));
-    if state.last_selected_nodes.len() == 1 {
-        let node_id = state.last_selected_nodes[0];
-        // Check if the node still exists in our app state before getting position
-        if state.nodes.iter().any(|n| n.id == node_id) {
-            let screen_pos = node_id.get_position(CoordinateSystem::ScreenSpace);
-            let editor_pos = node_id.get_position(CoordinateSystem::EditorSpace);
-            let grid_pos = node_id.get_position(CoordinateSystem::GridSpace);
-            ui.text(format!("  Node {node_id:?} Pos:"));
-            ui.text(format!(
-                "    Screen: {:.1}, {:.1}",
-                screen_pos.x, screen_pos.y
-            ));
-            ui.text(format!(
-                "    Editor: {:.1}, {:.1}",
-                editor_pos.x, editor_pos.y
-            ));
-            ui.text(format!("    Grid:   {:.1}, {:.1}", grid_pos.x, grid_pos.y));
-
-            ui.same_line();
-            if ui.button("Deselect Node") {
-                let _ = node_id.deselect();
-            }
-            ui.same_line();
-            if ui.button("Snap to Grid") {
-                let _ = node_id.snap_to_grid();
-            }
-        } else {
-            // Node was likely removed after selection but before redraw
-            ui.text(format!("  Node {node_id:?} (removed)"));
-        }
-    } else if state.last_selected_nodes.len() > 1 {
-        ui.same_line();
-        if ui.button("Clear Node Selection") {
-            state.editor_context.clear_node_selection();
-            state.last_selected_nodes.clear();
-        }
-    }
-
-    ui.text(format!(
-        "Selected Links: {}",
-        state.last_selected_links.len()
-    ));
-    if !state.last_selected_links.is_empty() {
-        ui.same_line();
-        if ui.button("Clear Link Selection") {
-            state.editor_context.clear_link_selection();
-            state.last_selected_links.clear();
-        }
-    }
-
-    ui.separator();
-    ui.text(format!("Status: {}", state.status));
-    ui.separator();
-
-    // Store context menu click position *outside* the editor closure
-    let mut context_menu_pos = None;
-    let outer_scope = editor(&mut state.editor_context, |mut editor_scope| {
-        // Detect context menu click *inside* the editor scope
-        if editor_scope.is_hovered()
-            && (ui.is_key_released(imgui::Key::A) || ui.is_mouse_clicked(imgui::MouseButton::Right))
-        {
-            // Store the position where the node should be added
-            context_menu_pos = Some(ui.io().mouse_pos);
         }
 
-        // Iterate using indices to allow mutable borrow inside slider closure
-        for i in 0..state.nodes.len() {
-            // Need to get these before the mutable borrow below
-            let node_id = state.nodes[i].id;
-            let input_pin = state.nodes[i].input;
-            let output_pin = state.nodes[i].output;
-            let attr_id = state.id_gen.next_attribute(); // Regenerate attribute ID each frame
-
-            editor_scope.add_node(node_id, |mut node_scope| {
+        for node in &mut state.nodes {
+            editor_scope.add_node(node.id, |mut node_scope| {
                 node_scope.add_titlebar(|| {
-                    ui.text(format!("Node {node_id:?}"));
+                    ui.text("node");
                 });
 
-                node_scope.add_input(input_pin, PinShape::CircleFilled, || {
-                    ui.text("In");
-                });
+                node_scope.add_input(
+                    &InputAttributeDesc {
+                        id: node.input,
+                        shape: PinShape::CircleFilled,
+                    },
+                    || {
+                        ui.text("input");
+                    },
+                );
 
-                ui.same_line();
+                node_scope.add_static_attribute(
+                    &StaticAttributeDesc { id: node.attribute },
+                    || {
+                        ui.set_next_item_width(120.0);
+                        imgui::Drag::new("value")
+                            .speed(0.01)
+                            .build(ui, &mut node.value);
+                    },
+                );
 
-                // Add a simple widget like in multi_editor
-                node_scope.add_static_attribute(attr_id, || {
-                    if let Some(_node_mut) = state.nodes.get_mut(i) {
-                        ui.set_next_item_width(80.0);
-                    }
-                });
-
-                ui.same_line();
-
-                node_scope.add_output(output_pin, PinShape::CircleFilled, || {
-                    ui.text("Out");
-                });
+                node_scope.add_output(
+                    &OutputAttributeDesc {
+                        id: node.output,
+                        shape: PinShape::CircleFilled,
+                    },
+                    || {
+                        // Indent to align right - simplified for Rust
+                        ui.text("output");
+                    },
+                );
             });
         }
 
-        for link_data in &state.links {
-            editor_scope.add_link(link_data.id, link_data.end_pin, link_data.start_pin);
+        for link in &state.links {
+            editor_scope.add_link(link.id, link.end_attr, link.start_attr);
         }
     });
 
-    // Handle node addition request *after* the editor scope ends
-    if let Some(pos) = context_menu_pos {
-        state.add_node(Some(pos));
-        // state.add_node_at = None; // Not needed anymore
-    } else if let Some(pos) = state.add_node_at {
-        if pos[0] == -1.0 {
-            // Check for sentinel value from button click
-            state.add_node(None);
-        }
-        state.add_node_at = None; // Reset request
-    }
-
-    // Update stored selections for the *next* frame
-    state.last_selected_nodes = outer_scope.selected_nodes();
-    state.last_selected_links = outer_scope.selected_links();
-
-    if let Some(new_link) = outer_scope.links_created() {
-        let new_app_link = AppLink {
+    if let Some(link) = outer_scope.links_created() {
+        state.links.push(Link {
             id: state.id_gen.next_link(),
-            start_pin: new_link.start_pin,
-            end_pin: new_link.end_pin,
-        };
-        if !state
-            .links
-            .iter()
-            .any(|l| l.start_pin == new_app_link.start_pin && l.end_pin == new_app_link.end_pin)
-        {
-            state.links.push(new_app_link);
-            state.status = format!(
-                "Created Link from pin {:?} to {:?}",
-                new_link.start_pin, new_link.end_pin
-            );
-        }
+            start_attr: link.start_pin,
+            end_attr: link.end_pin,
+        });
     }
 
     if let Some(destroyed_link_id) = outer_scope.get_destroyed_link() {
-        let initial_len = state.links.len();
-        state.links.retain(|link| link.id != destroyed_link_id);
-        if state.links.len() < initial_len {
-            state.status = format!("Removed Link {destroyed_link_id:?}");
-        }
+        state.links.retain(|l| l.id != destroyed_link_id);
     }
-
-    // Pop the editor's unique ID
-    editor_id.pop();
 }

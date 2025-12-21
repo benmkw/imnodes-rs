@@ -9,7 +9,7 @@ categories = ["gui", "api-bindings"]
 readme = "README.md"
 
 [dependencies]
-imnodes-sys = { version = "0.5.0", path = "imnodes-sys" }
+imnodes-sys = { version = "0.6.0", path = "imnodes-sys" }
 imgui = "0.12"
 
 [features]

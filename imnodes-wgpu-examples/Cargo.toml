@@ -1,6 +1,6 @@
 [package]
 name = "imnodes-wgpu-examples"
-version = "0.5.0"
+version = "0.6.0"
 authors = [
     "Benedikt Mandelkow <benedikt.mandelkow@rwth-aachen.de>",
     "imgui-wgpu contributors",
@@ -10,9 +10,10 @@ edition = "2024"
 [dependencies]
 imnodes = { path = "../" }
 
-wgpu = "25.0.0"
+wgpu = "27.0.1"
 winit = "0.30"
 futures = "0.3.31"
 imgui = "0.12"
 imgui-winit-support = "0.13"
-imgui-wgpu = "0.25"
+# imgui-wgpu = "0.25"
+imgui-wgpu = { git = "https://github.com/Yatekii/imgui-wgpu-rs", rev = "3db5c5ad6a63f46428d836e34b1f4557ded0b6b4" }

@@ -47,6 +47,12 @@ fn main() -> io::Result<()> {
         .include(&cimgui_include_path)
         .include(&imgui_include_path)
         .include("third-party/cimnodes/imnodes/")
+        .include("third-party/")
+        // Force-include ImVec2_c definition before any cimnodes headers.
+        // The cimnodes generator expects cimgui to define ImVec2_c, but imgui-sys's
+        // cimgui uses ImVec2 instead. This header bridges the gap.
+        .flag("-include")
+        .flag("third-party/imvec2_c.h")
         .warnings(false)
         .cpp(true)
         .flag("-std=c++11")

@@ -1,13 +1,14 @@
 use imnodes::{
-    AttributeFlags, AttributeId, Context, EditorContext, IdentifierGenerator, InputPinId, LinkId,
-    NodeId, OutputPinId, PinShape, Style, editor,
+    AttributeFlags, AttributeId, Context, EditorContext, EditorContextDesc, IdentifierGenerator,
+    InputAttributeDesc, InputPinId, LinkId, MiniMapDesc, MiniMapLocation, NodeId,
+    OutputAttributeDesc, OutputPinId, PinShape, StaticAttributeDesc, StyleDesc, editor,
 };
 
-pub struct State {
-    pub editor_context: EditorContext,
+pub struct State<'a> {
+    pub editor_context: EditorContext<'a>,
     id_gen: IdentifierGenerator,
     graph: Graph,
-    style: Style,
+    positions_initialized: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -18,41 +19,132 @@ struct Graph {
 
 impl Graph {
     fn new(id_gen: &mut IdentifierGenerator) -> Self {
+        // Create output node
         let output = id_gen.next_node();
-        let red = id_gen.next_input_pin();
-        let constant = id_gen.next_output_pin();
+        let red_in = id_gen.next_input_pin();
+        let green_in = id_gen.next_input_pin();
+        let blue_in = id_gen.next_input_pin();
 
-        Self {
-            nodes: vec![
-                Node {
-                    id: output,
-                    value: 0.0, // never used
-                    typ: NodeType::Output(OutData {
-                        input_red: red,
-                        input_green: id_gen.next_input_pin(),
-                        input_blue: id_gen.next_input_pin(),
-                        red: 0.1,
-                        green: 0.1,
-                        blue: 0.1,
-                    }),
-                    updated: false,
-                },
-                Node {
-                    id: id_gen.next_node(),
-                    typ: NodeType::Constant(ConstData {
-                        output: constant,
-                        attribute: id_gen.next_attribute(),
-                    }),
-                    value: 0.4,
-                    updated: false,
-                },
-            ],
-            links: vec![Link {
+        // Create time node (oscillates)
+        let time_node = id_gen.next_node();
+        let time_out = id_gen.next_output_pin();
+
+        // Create sine node (smooths the oscillation)
+        let sine_node = id_gen.next_node();
+        let sine_in = id_gen.next_input_pin();
+        let sine_out = id_gen.next_output_pin();
+
+        // Create multiply node (scales the sine wave)
+        let multiply_node = id_gen.next_node();
+        let multiply_in1 = id_gen.next_input_pin();
+        let multiply_in2 = id_gen.next_input_pin();
+        let multiply_out = id_gen.next_output_pin();
+
+        // Create constant node for scaling
+        let constant_node = id_gen.next_node();
+        let constant_out = id_gen.next_output_pin();
+
+        // Create add node to offset the result
+        let add_node = id_gen.next_node();
+        let add_in1 = id_gen.next_input_pin();
+        let add_in2 = id_gen.next_input_pin();
+        let add_out = id_gen.next_output_pin();
+
+        let nodes = vec![
+            Node {
+                id: output,
+                value: 0.0,
+                typ: NodeType::Output(OutData {
+                    input_red: red_in,
+                    input_green: green_in,
+                    input_blue: blue_in,
+                    red: 0.1,
+                    green: 0.1,
+                    blue: 0.1,
+                }),
+                updated: false,
+            },
+            Node {
+                id: time_node,
+                typ: NodeType::Time(TimeData { output: time_out }),
+                value: 0.0,
+                updated: false,
+            },
+            Node {
+                id: sine_node,
+                typ: NodeType::Sine(SineData {
+                    input: sine_in,
+                    output: sine_out,
+                }),
+                value: 0.0,
+                updated: false,
+            },
+            Node {
+                id: multiply_node,
+                typ: NodeType::Multiply(MultData {
+                    input1: multiply_in1,
+                    input2: multiply_in2,
+                    output: multiply_out,
+                }),
+                value: 0.0,
+                updated: false,
+            },
+            Node {
+                id: constant_node,
+                typ: NodeType::Constant(ConstData {
+                    output: constant_out,
+                    attribute: id_gen.next_attribute(),
+                }),
+                value: 0.5,
+                updated: false,
+            },
+            Node {
+                id: add_node,
+                typ: NodeType::Add(AddData {
+                    input1: add_in1,
+                    input2: add_in2,
+                    output: add_out,
+                }),
+                value: 0.0,
+                updated: false,
+            },
+        ];
+
+        // Create links to form a processing chain: time -> sine -> multiply -> add -> output (red channel)
+        let links = vec![
+            Link {
                 id: id_gen.next_link(),
-                start: constant,
-                end: red,
-            }],
-        }
+                start: time_out,
+                end: sine_in,
+            },
+            Link {
+                id: id_gen.next_link(),
+                start: sine_out,
+                end: multiply_in1,
+            },
+            Link {
+                id: id_gen.next_link(),
+                start: constant_out,
+                end: multiply_in2,
+            },
+            Link {
+                id: id_gen.next_link(),
+                start: multiply_out,
+                end: add_in1,
+            },
+            Link {
+                id: id_gen.next_link(),
+                start: constant_out,
+                end: add_in2,
+            },
+            Link {
+                id: id_gen.next_link(),
+                start: add_out,
+                end: red_in,
+            },
+        ];
+
+        Self { nodes, links }
     }
 }
 
@@ -83,11 +175,29 @@ impl Node {
             NodeType::Output(_) => false,
         }
     }
+
+    fn owns_input(&self, pin_id: InputPinId) -> bool {
+        match self.typ {
+            NodeType::Add(AddData { input1, input2, .. }) => input1 == pin_id || input2 == pin_id,
+            NodeType::Multiply(MultData { input1, input2, .. }) => {
+                input1 == pin_id || input2 == pin_id
+            }
+            NodeType::Sine(SineData { input, .. }) => input == pin_id,
+            NodeType::Output(OutData {
+                input_red,
+                input_green,
+                input_blue,
+                ..
+            }) => input_red == pin_id || input_green == pin_id || input_blue == pin_id,
+            NodeType::Time(_) | NodeType::Constant(_) => false,
+        }
+    }
+
     fn get_inputs(&self) -> Vec<InputPinId> {
         match self.typ {
-            NodeType::Add(AddData { input, .. })
-            | NodeType::Multiply(MultData { input, .. })
-            | NodeType::Sine(SineData { input, .. }) => vec![input],
+            NodeType::Add(AddData { input1, input2, .. }) => vec![input1, input2],
+            NodeType::Multiply(MultData { input1, input2, .. }) => vec![input1, input2],
+            NodeType::Sine(SineData { input, .. }) => vec![input],
             NodeType::Output(OutData {
                 input_red,
                 input_green,
@@ -99,11 +209,28 @@ impl Node {
     }
 }
 
-// Helper to get predecessor values without causing borrow issues
-fn get_predecessor_values(graph: &Graph, predecessors: &[usize]) -> Vec<f32> {
-    predecessors
+// Helper to get predecessor values for a specific node's inputs
+// Returns values in the order of the node's input pins
+fn get_input_values(graph: &Graph, node: &Node) -> Vec<f32> {
+    let inputs = node.get_inputs();
+    inputs
         .iter()
-        .filter_map(|&idx| graph.nodes.get(idx).map(|node| node.value))
+        .map(|&input_pin| {
+            // Find the link that ends at this input pin
+            graph
+                .links
+                .iter()
+                .find(|link| link.end == input_pin)
+                .and_then(|link| {
+                    // Find the node that has the output for this link
+                    graph
+                        .nodes
+                        .iter()
+                        .find(|n| n.has_output(link.start))
+                        .map(|n| n.value)
+                })
+                .unwrap_or(0.0)
+        })
         .collect()
 }
 
@@ -139,21 +266,21 @@ fn update_node_recursive(graph: &mut Graph, node_idx: usize) {
         update_node_recursive(graph, p_idx);
     }
 
-    // Now that predecessors are updated, calculate this node's value
-    let predecessor_values = get_predecessor_values(graph, &predecessors);
+    // Now that predecessors are updated, get input values in correct order
+    let input_values = get_input_values(graph, &node_clone);
 
     // Get mutable access to the current node *after* processing predecessors
     if let Some(curr_node) = graph.nodes.get_mut(node_idx) {
         match curr_node.typ {
             NodeType::Add(_) => {
-                curr_node.value = predecessor_values.iter().sum();
+                curr_node.value = input_values.iter().sum();
             }
             NodeType::Multiply(_) => {
-                curr_node.value = predecessor_values.iter().product();
+                curr_node.value = input_values.iter().product();
             }
             NodeType::Sine(_) => {
                 // Sine usually takes one input
-                curr_node.value = predecessor_values
+                curr_node.value = input_values
                     .first()
                     .map_or(0.0, |&v| (v * core::f32::consts::PI).sin());
             }
@@ -166,7 +293,8 @@ fn update_node_recursive(graph: &mut Graph, node_idx: usize) {
                     / 1000.0;
             }
             NodeType::Constant(_) => {
-                // Value is updated by UI, nothing to do here
+                // Value is set via UI, just mark as updated
+                // (value was already set when the node was created or via slider)
             }
             NodeType::Output(_) => {
                 // Output node value itself isn't calculated, its pin values are.
@@ -253,13 +381,15 @@ enum NodeType {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct AddData {
-    input: InputPinId,
+    input1: InputPinId,
+    input2: InputPinId,
     output: OutputPinId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct MultData {
-    input: InputPinId,
+    input1: InputPinId,
+    input2: InputPinId,
     output: OutputPinId,
 }
 #[derive(Debug, Clone, PartialEq)]
@@ -286,9 +416,9 @@ struct ConstData {
     attribute: AttributeId,
 }
 
-impl State {
-    pub fn new(context: &Context) -> Self {
-        let editor_context = context.create_editor();
+impl<'a> State<'a> {
+    pub fn new(context: &'a Context) -> Self {
+        let editor_context = context.create_editor(&EditorContextDesc::default());
         let mut id_gen = editor_context.new_identifier_generator();
         let nodes = Graph::new(&mut id_gen);
 
@@ -296,295 +426,472 @@ impl State {
             id_gen,
             editor_context,
             graph: nodes,
-            style: Style::default(),
+            positions_initialized: false,
         }
     }
 }
 
 /// https://github.com/Nelarius/imnodes/blob/master/example/color_node_editor.cpp
-pub fn show(ui: &imgui::Ui, state: &mut State) {
-    state
-        .editor_context
-        .set_style_colors_classic(&mut state.style);
-
+pub fn show<'a>(ui: &imgui::Ui, state: &mut State<'a>) {
     ui.text("press \"A\" or right click to add a Node");
 
     // Update graph values before getting colors
     update_output_node(&mut state.graph, 0); // Assuming node 0 is always the output node
 
-    // color setup
-    let background = if let NodeType::Output(OutData {
-        red, green, blue, ..
-    }) = &state.graph.nodes[0].typ
-    {
-        imnodes::ColorStyle::GridBackground.push_color([*red, *green, *blue], &state.editor_context)
-    } else {
-        unreachable!()
-    };
-
-    let title_bar_color = imnodes::ColorStyle::TitleBar.push_color(
-        [11.0 / 255.0, 109.0 / 255.0, 191.0 / 255.0],
-        &state.editor_context,
-    );
-    let title_bar_hovered_color = imnodes::ColorStyle::TitleBarHovered.push_color(
-        [45.0 / 255.0, 126.0 / 255.0, 194.0 / 255.0],
-        &state.editor_context,
-    );
-    let title_bar_selected_color = imnodes::ColorStyle::TitleBarSelected.push_color(
-        [81.0 / 255.0, 148.0 / 255.0, 204.0 / 255.0],
-        &state.editor_context,
-    );
-
-    let link_color = imnodes::ColorStyle::Link.push_color([0.8, 0.5, 0.1], &state.editor_context);
-
-    // Set node position here, after the editor context is set
-    let _ = state.editor_context.set_as_current_editor(); // Ensure context is current before setting pos
-    let width = ui.window_content_region_max()[0] - ui.window_content_region_min()[0];
-    let _ = state.graph.nodes[0]
-        .id
-        .set_position(0.9 * width, 300.0, imnodes::CoordinateSystem::ScreenSpace)
-        .set_draggable(false);
-
-    // node and link behaviour setup
-    let on_snap = state
-        .editor_context
-        .push_attribute_flag(AttributeFlags::EnableLinkCreationOnSnap);
-    let detach = state
-        .editor_context
-        .push_attribute_flag(AttributeFlags::EnableLinkDetachWithDragClick);
-
-    // Destructure state *after* graph update
     let State {
         editor_context,
         graph,
         id_gen,
+        positions_initialized,
         ..
     } = state;
 
-    // main node ui
-    let outer_scope = create_the_editor(ui, editor_context, graph, id_gen);
+    // Ensure context is current for set_position
+    let _ = editor_context.set_as_current_editor();
+
+    // Keep output node locked at right side
+    let width = ui.window_content_region_max()[0] - ui.window_content_region_min()[0];
+    let _ = graph.nodes[0]
+        .id
+        .set_position(0.9 * width, 300.0, imnodes::CoordinateSystem::ScreenSpace)
+        .set_draggable(false);
+
+    // Determine background color
+    let bg_color = if let NodeType::Output(OutData {
+        red, green, blue, ..
+    }) = &graph.nodes[0].typ
+    {
+        [*red, *green, *blue]
+    } else {
+        unreachable!()
+    };
+
+    // Draw a colored rectangle as background to show the computed color
+    let draw_list = ui.get_window_draw_list();
+    let pos = ui.cursor_screen_pos();
+    let size = ui.content_region_avail();
+    draw_list
+        .add_rect(
+            pos,
+            [pos[0] + size[0], pos[1] + size[1]],
+            [bg_color[0], bg_color[1], bg_color[2], 1.0],
+        )
+        .filled(true)
+        .build();
+
+    let outer_scope = create_the_editor(
+        ui,
+        editor_context,
+        graph,
+        id_gen,
+        bg_color,
+        positions_initialized,
+    );
 
     // user interaction handling
     if let Some(link) = outer_scope.links_created() {
-        state.graph.links.push(Link {
-            id: state.id_gen.next_link(),
+        graph.links.push(Link {
+            id: id_gen.next_link(),
             start: link.start_pin,
             end: link.end_pin,
         });
         // Trigger graph update after link creation
-        update_output_node(&mut state.graph, 0);
+        update_output_node(graph, 0);
     }
 
     if let Some(link) = outer_scope.get_destroyed_link() {
-        state.graph.links.retain(|e| e.id != link);
+        graph.links.retain(|e| e.id != link);
         // Trigger graph update after link destruction
-        update_output_node(&mut state.graph, 0);
+        update_output_node(graph, 0);
     }
 
-    // cleanup
-    background.pop();
+    // Handle deletion
+    if ui.is_key_released(imgui::Key::Delete) || ui.is_key_released(imgui::Key::Backspace) {
+        let selected_nodes = outer_scope.selected_nodes();
+        let selected_links = outer_scope.selected_links();
 
-    title_bar_color.pop();
-    title_bar_hovered_color.pop();
-    title_bar_selected_color.pop();
-    link_color.pop();
+        if !selected_nodes.is_empty() || !selected_links.is_empty() {
+            let mut nodes_to_delete = std::collections::HashSet::new();
+            for node_id in selected_nodes {
+                nodes_to_delete.insert(node_id);
+            }
 
-    on_snap.pop();
-    detach.pop();
+            let mut links_to_delete = std::collections::HashSet::new();
+            for link_id in selected_links {
+                links_to_delete.insert(link_id);
+            }
+
+            // Find links connected to deleted nodes
+            for node in &graph.nodes {
+                if nodes_to_delete.contains(&node.id) {
+                    for link in &graph.links {
+                        if node.has_output(link.start) || node.owns_input(link.end) {
+                            links_to_delete.insert(link.id);
+                        }
+                    }
+                }
+            }
+
+            graph.nodes.retain(|n| !nodes_to_delete.contains(&n.id));
+            graph.links.retain(|l| !links_to_delete.contains(&l.id));
+
+            // Trigger graph update
+            update_output_node(graph, 0);
+        }
+    }
 }
 
 /// main node ui
-fn create_the_editor(
+fn create_the_editor<'a>(
     ui: &imgui::Ui,
-    editor_context: &mut EditorContext,
+    editor_context: &mut EditorContext<'a>,
     graph: &mut Graph,
     id_gen: &mut IdentifierGenerator,
+    bg_color: [f32; 3],
+    positions_initialized: &mut bool,
 ) -> imnodes::OuterScope {
     editor(editor_context, |mut editor| {
-        editor.add_mini_map(0.2, imnodes::MiniMapLocation::BottomLeft);
-
-        let popup_modal = "popup_add_node";
-
-        if editor.is_hovered()
-            && (ui.is_mouse_clicked(imgui::MouseButton::Right) || ui.is_key_released(imgui::Key::A))
-        {
-            ui.open_popup(popup_modal);
-        }
-
-        ui.modal_popup_config(popup_modal)
-            .always_auto_resize(true)
-            .movable(false)
-            .resizable(false)
-            .build(|| {
-                let size = [100.0, 0.0];
-                // Get mouse position relative to screen space as that's where node positions are set
-                let click_pos = ui.io().mouse_pos;
-
-                // Helper closure to generate node ID and set position
-                // Does NOT capture id_gen mutably anymore
-                let gen_node_base = |id_gen: &mut IdentifierGenerator| {
-                    let node_id = id_gen.next_node();
-                    // Set position immediately after creation
-                    let _ = node_id.set_position(
-                        click_pos[0],
-                        click_pos[1],
-                        imnodes::CoordinateSystem::ScreenSpace,
+        // Apply styles that were previously applied via builder
+        editor.push_style(
+            &StyleDesc {
+                colors: &[
+                    (imnodes::ColorStyle::GridBackground, bg_color.into()),
+                    (
+                        imnodes::ColorStyle::TitleBar,
+                        [11.0 / 255.0, 109.0 / 255.0, 191.0 / 255.0].into(),
+                    ),
+                    (
+                        imnodes::ColorStyle::TitleBarHovered,
+                        [45.0 / 255.0, 126.0 / 255.0, 194.0 / 255.0].into(),
+                    ),
+                    (
+                        imnodes::ColorStyle::TitleBarSelected,
+                        [81.0 / 255.0, 148.0 / 255.0, 204.0 / 255.0].into(),
+                    ),
+                    (imnodes::ColorStyle::Link, [0.8, 0.5, 0.1].into()),
+                ],
+                flags: &[
+                    AttributeFlags::EnableLinkCreationOnSnap,
+                    AttributeFlags::EnableLinkDetachWithDragClick,
+                ],
+                ..Default::default()
+            },
+            |editor| {
+                // Set initial positions for demo nodes (only once)
+                if !*positions_initialized && graph.nodes.len() >= 6 {
+                    let _ = graph.nodes[0].id.set_position(
+                        760.0,
+                        150.0,
+                        imnodes::CoordinateSystem::EditorSpace,
                     );
-                    node_id
-                };
+                    let _ = graph.nodes[1].id.set_position(
+                        50.0,
+                        150.0,
+                        imnodes::CoordinateSystem::EditorSpace,
+                    );
+                    let _ = graph.nodes[2].id.set_position(
+                        220.0,
+                        150.0,
+                        imnodes::CoordinateSystem::EditorSpace,
+                    );
+                    let _ = graph.nodes[3].id.set_position(
+                        400.0,
+                        150.0,
+                        imnodes::CoordinateSystem::EditorSpace,
+                    );
+                    let _ = graph.nodes[4].id.set_position(
+                        220.0,
+                        280.0,
+                        imnodes::CoordinateSystem::EditorSpace,
+                    );
+                    let _ = graph.nodes[5].id.set_position(
+                        580.0,
+                        150.0,
+                        imnodes::CoordinateSystem::EditorSpace,
+                    );
+                    *positions_initialized = true;
+                }
 
-                if ui.button_with_size("Add", size) {
-                    // Generate IDs *here*, outside the closure
-                    let node_id = gen_node_base(id_gen);
-                    let input_pin = id_gen.next_input_pin();
-                    let output_pin = id_gen.next_output_pin();
-                    graph.nodes.push(Node {
-                        id: node_id,
-                        value: 0.0,
-                        typ: NodeType::Add(AddData {
-                            input: input_pin,
-                            output: output_pin,
-                        }),
-                        updated: false,
-                    });
-                    ui.close_current_popup();
-                }
-                if ui.button_with_size("Multiply", size) {
-                    let node_id = gen_node_base(id_gen);
-                    let input_pin = id_gen.next_input_pin();
-                    let output_pin = id_gen.next_output_pin();
-                    graph.nodes.push(Node {
-                        id: node_id,
-                        value: 0.0,
-                        typ: NodeType::Multiply(MultData {
-                            input: input_pin,
-                            output: output_pin,
-                        }),
-                        updated: false,
-                    });
-                    ui.close_current_popup();
-                }
-                if ui.button_with_size("Sine", size) {
-                    graph.nodes.push(Node {
-                        id: gen_node_base(id_gen),
-                        value: 0.0,
-                        typ: NodeType::Sine(SineData {
-                            input: id_gen.next_input_pin(),
-                            output: id_gen.next_output_pin(),
-                        }),
-                        updated: false,
-                    });
-                    ui.close_current_popup();
-                }
-                if ui.button_with_size("Time", size) {
-                    graph.nodes.push(Node {
-                        id: gen_node_base(id_gen),
-                        value: 0.0,
-                        typ: NodeType::Time(TimeData {
-                            output: id_gen.next_output_pin(),
-                        }),
-                        updated: false,
-                    });
-                    ui.close_current_popup();
-                }
-                if ui.button_with_size("Constant", size) {
-                    let node_id = gen_node_base(id_gen);
-                    let output_pin = id_gen.next_output_pin();
-                    let attr_id = id_gen.next_attribute();
-                    graph.nodes.push(Node {
-                        id: node_id,
-                        value: 0.0,
-                        typ: NodeType::Constant(ConstData {
-                            output: output_pin,
-                            attribute: attr_id,
-                        }),
-                        updated: false,
-                    });
-                    ui.close_current_popup();
-                }
-                ui.separator();
-                if ui.button_with_size("Close", size) {
-                    ui.close_current_popup();
-                }
-            });
+                editor.add_mini_map(&MiniMapDesc {
+                    size_fraction: 0.2,
+                    location: MiniMapLocation::BottomLeft,
+                });
 
-        for i in 0..graph.nodes.len() {
-            let node_id = graph.nodes[i].id;
-            let node_type = graph.nodes[i].typ.clone();
-            let node_value = graph.nodes[i].value;
+                let popup_id = ui.push_id("popup_add_node");
 
-            editor.add_node(node_id, |mut node_scope| {
-                match node_type {
-                    NodeType::Add(AddData { input, output, .. }) => {
-                        node_scope.add_titlebar(|| ui.text("Add"));
-                        node_scope.add_input(input, PinShape::QuadFilled, || ui.text("input"));
-                        ui.text(format!("Value: {node_value:.2}"));
-                        node_scope.add_output(output, PinShape::CircleFilled, || ui.text("output"));
+                // Context menu logic
+                if editor.is_hovered()
+                    && (ui.is_mouse_clicked(imgui::MouseButton::Right)
+                        || ui.is_key_released(imgui::Key::A))
+                {
+                    ui.open_popup("popup_add_node");
+                }
+
+                // Using standard popup instead of modal for better UX
+                if let Some(_popup) = ui.begin_popup("popup_add_node") {
+                    let click_pos = ui.io().mouse_pos;
+
+                    // Helper closure to generate node ID and set position
+                    let gen_node_base = |id_gen: &mut IdentifierGenerator| {
+                        let node_id = id_gen.next_node();
+                        // Set position immediately after creation
+                        let _ = node_id.set_position(
+                            click_pos[0],
+                            click_pos[1],
+                            imnodes::CoordinateSystem::ScreenSpace,
+                        );
+                        node_id
+                    };
+
+                    if ui.menu_item("Add") {
+                        let node_id = gen_node_base(id_gen);
+                        let input_pin1 = id_gen.next_input_pin();
+                        let input_pin2 = id_gen.next_input_pin();
+                        let output_pin = id_gen.next_output_pin();
+                        graph.nodes.push(Node {
+                            id: node_id,
+                            value: 0.0,
+                            typ: NodeType::Add(AddData {
+                                input1: input_pin1,
+                                input2: input_pin2,
+                                output: output_pin,
+                            }),
+                            updated: false,
+                        });
                     }
-                    NodeType::Multiply(MultData { input, output, .. }) => {
-                        node_scope.add_titlebar(|| ui.text("Multiply"));
-                        ui.text(format!("Value: {node_value:.2}"));
-                        node_scope.add_input(input, PinShape::QuadFilled, || ui.text("input"));
-                        node_scope.add_output(output, PinShape::CircleFilled, || ui.text("output"));
+                    if ui.menu_item("Multiply") {
+                        let node_id = gen_node_base(id_gen);
+                        let input_pin1 = id_gen.next_input_pin();
+                        let input_pin2 = id_gen.next_input_pin();
+                        let output_pin = id_gen.next_output_pin();
+                        graph.nodes.push(Node {
+                            id: node_id,
+                            value: 0.0,
+                            typ: NodeType::Multiply(MultData {
+                                input1: input_pin1,
+                                input2: input_pin2,
+                                output: output_pin,
+                            }),
+                            updated: false,
+                        });
                     }
-                    NodeType::Output(OutData {
-                        input_red,
-                        input_green,
-                        input_blue,
-                        red,
-                        green,
-                        blue,
-                        ..
-                    }) => {
-                        node_scope.add_titlebar(|| ui.text("Output"));
-                        node_scope.add_input(input_red, PinShape::QuadFilled, || ui.text("red"));
-                        node_scope
-                            .add_input(input_green, PinShape::QuadFilled, || ui.text("green"));
-                        node_scope.add_input(input_blue, PinShape::QuadFilled, || ui.text("blue"));
-                        // Read directly from the cloned data for display
-                        ui.text(format!("red: {red:.2}"));
-                        ui.text(format!("green: {green:.2}"));
-                        ui.text(format!("blue: {blue:.2}"));
+                    if ui.menu_item("Sine") {
+                        graph.nodes.push(Node {
+                            id: gen_node_base(id_gen),
+                            value: 0.0,
+                            typ: NodeType::Sine(SineData {
+                                input: id_gen.next_input_pin(),
+                                output: id_gen.next_output_pin(),
+                            }),
+                            updated: false,
+                        });
                     }
-                    NodeType::Sine(SineData { input, output, .. }) => {
-                        node_scope.add_titlebar(|| ui.text("Sine"));
-                        node_scope.add_input(input, PinShape::QuadFilled, || ui.text("input"));
-                        ui.text(format!("Value: {node_value:.2}"));
-                        node_scope.add_output(output, PinShape::CircleFilled, || ui.text("output"));
+                    if ui.menu_item("Time") {
+                        graph.nodes.push(Node {
+                            id: gen_node_base(id_gen),
+                            value: 0.0,
+                            typ: NodeType::Time(TimeData {
+                                output: id_gen.next_output_pin(),
+                            }),
+                            updated: false,
+                        });
                     }
-                    NodeType::Time(TimeData { output, .. }) => {
-                        node_scope.add_titlebar(|| ui.text("Time"));
-                        ui.text(format!("Value: {node_value:.2}"));
-                        node_scope.add_output(output, PinShape::CircleFilled, || ui.text("output"));
+                    if ui.menu_item("Constant") {
+                        let node_id = gen_node_base(id_gen);
+                        let output_pin = id_gen.next_output_pin();
+                        let attr_id = id_gen.next_attribute();
+                        graph.nodes.push(Node {
+                            id: node_id,
+                            value: 0.0,
+                            typ: NodeType::Constant(ConstData {
+                                output: output_pin,
+                                attribute: attr_id,
+                            }),
+                            updated: false,
+                        });
                     }
-                    NodeType::Constant(ConstData {
-                        attribute, output, ..
-                    }) => {
-                        node_scope.add_titlebar(|| ui.text("Constant"));
-                        // Need mutable access *only* for the slider
-                        node_scope.add_static_attribute(attribute, || {
-                            ui.set_next_item_width(130.0);
-                            // Get mutable access just for the slider build call
-                            if let Some(node_mut) = graph.nodes.get_mut(i) {
-                                if ui
-                                    .slider_config("value", 0.0, 1.0)
-                                    .display_format(format!("{:.2}", node_mut.value)) // Display current value
-                                    .build(&mut node_mut.value)
-                                // Modify actual value
+                }
+                popup_id.pop();
+
+                for i in 0..graph.nodes.len() {
+                    let node_id = graph.nodes[i].id;
+                    let node_value = graph.nodes[i].value;
+                    // Clone node type to get IDs, but we'll read fresh data for Output node
+                    let node_type = graph.nodes[i].typ.clone();
+
+                    editor.add_node(node_id, |mut node_scope| {
+                        match &node_type {
+                            NodeType::Add(AddData {
+                                input1,
+                                input2,
+                                output,
+                                ..
+                            }) => {
+                                node_scope.add_titlebar(|| ui.text("Add"));
+                                node_scope.add_input(
+                                    &InputAttributeDesc {
+                                        id: *input1,
+                                        shape: PinShape::QuadFilled,
+                                    },
+                                    || ui.text("a"),
+                                );
+                                node_scope.add_input(
+                                    &InputAttributeDesc {
+                                        id: *input2,
+                                        shape: PinShape::QuadFilled,
+                                    },
+                                    || ui.text("b"),
+                                );
+                                ui.text(format!("Value: {:.2}", node_value));
+                                node_scope.add_output(
+                                    &OutputAttributeDesc {
+                                        id: *output,
+                                        shape: PinShape::CircleFilled,
+                                    },
+                                    || ui.text("output"),
+                                );
+                            }
+                            NodeType::Multiply(MultData {
+                                input1,
+                                input2,
+                                output,
+                                ..
+                            }) => {
+                                node_scope.add_titlebar(|| ui.text("Multiply"));
+                                node_scope.add_input(
+                                    &InputAttributeDesc {
+                                        id: *input1,
+                                        shape: PinShape::QuadFilled,
+                                    },
+                                    || ui.text("a"),
+                                );
+                                node_scope.add_input(
+                                    &InputAttributeDesc {
+                                        id: *input2,
+                                        shape: PinShape::QuadFilled,
+                                    },
+                                    || ui.text("b"),
+                                );
+                                ui.text(format!("Value: {:.2}", node_value));
+                                node_scope.add_output(
+                                    &OutputAttributeDesc {
+                                        id: *output,
+                                        shape: PinShape::CircleFilled,
+                                    },
+                                    || ui.text("output"),
+                                );
+                            }
+                            NodeType::Output(OutData {
+                                input_red,
+                                input_green,
+                                input_blue,
+                                ..
+                            }) => {
+                                node_scope.add_titlebar(|| ui.text("Output"));
+                                node_scope.add_input(
+                                    &InputAttributeDesc {
+                                        id: *input_red,
+                                        shape: PinShape::QuadFilled,
+                                    },
+                                    || ui.text("red"),
+                                );
+                                node_scope.add_input(
+                                    &InputAttributeDesc {
+                                        id: *input_green,
+                                        shape: PinShape::QuadFilled,
+                                    },
+                                    || ui.text("green"),
+                                );
+                                node_scope.add_input(
+                                    &InputAttributeDesc {
+                                        id: *input_blue,
+                                        shape: PinShape::QuadFilled,
+                                    },
+                                    || ui.text("blue"),
+                                );
+                                // Read FRESH values from graph (not the cloned data)
+                                if let NodeType::Output(OutData {
+                                    red, green, blue, ..
+                                }) = &graph.nodes[i].typ
                                 {
-                                    // Trigger graph update if constant value changes
-                                    update_output_node(graph, 0);
+                                    ui.text(format!("red: {:.2}", red));
+                                    ui.text(format!("green: {:.2}", green));
+                                    ui.text(format!("blue: {:.2}", blue));
                                 }
                             }
-                        });
-                        node_scope.add_output(output, PinShape::CircleFilled, || ui.text("output"));
-                    }
-                } // end match
-            }); // end add_node
-        } // end for
+                            NodeType::Sine(SineData { input, output, .. }) => {
+                                node_scope.add_titlebar(|| ui.text("Sine"));
+                                node_scope.add_input(
+                                    &InputAttributeDesc {
+                                        id: *input,
+                                        shape: PinShape::QuadFilled,
+                                    },
+                                    || ui.text("input"),
+                                );
+                                ui.text(format!("Value: {:.2}", node_value));
+                                node_scope.add_output(
+                                    &OutputAttributeDesc {
+                                        id: *output,
+                                        shape: PinShape::CircleFilled,
+                                    },
+                                    || ui.text("output"),
+                                );
+                            }
+                            NodeType::Time(TimeData { output, .. }) => {
+                                node_scope.add_titlebar(|| ui.text("Time"));
+                                ui.text(format!("Value: {:.2}", node_value));
+                                node_scope.add_output(
+                                    &OutputAttributeDesc {
+                                        id: *output,
+                                        shape: PinShape::CircleFilled,
+                                    },
+                                    || ui.text("output"),
+                                );
+                            }
+                            NodeType::Constant(ConstData {
+                                attribute, output, ..
+                            }) => {
+                                node_scope.add_titlebar(|| ui.text("Constant"));
+                                // Need mutable access *only* for the slider
+                                let is_active = node_scope.add_static_attribute(
+                                    &StaticAttributeDesc { id: *attribute },
+                                    || {
+                                        ui.set_next_item_width(130.0);
+                                        // Get mutable access just for the slider build call
+                                        if let Some(node_mut) = graph.nodes.get_mut(i)
+                                            && ui
+                                                .slider_config("value", 0.0, 1.0)
+                                                .display_format(format!("{:.2}", node_mut.value)) // Display current value
+                                                .build(&mut node_mut.value)
+                                        // Modify actual value
+                                        {
+                                            // Trigger graph update if constant value changes
+                                            update_output_node(graph, 0);
+                                        }
+                                    },
+                                );
 
-        for Link { id, start, end } in &graph.links {
-            editor.add_link(*id, *end, *start);
-        }
+                                // Example usage of the new return value:
+                                if is_active {
+                                    ui.text("Attribute is active!"); // Display message
+                                }
+
+                                node_scope.add_output(
+                                    &OutputAttributeDesc {
+                                        id: *output,
+                                        shape: PinShape::CircleFilled,
+                                    },
+                                    || ui.text("output"),
+                                );
+                            }
+                        } // end match
+                    }); // end add_node
+                } // end for
+
+                for Link { id, start, end } in &graph.links {
+                    editor.add_link(*id, *end, *start);
+                }
+            },
+        );
     })
 }
